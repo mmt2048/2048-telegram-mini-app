@@ -43,8 +43,33 @@ jobs:
         run: |
           cat > Dockerfile <<'EOF'
           FROM nginx:alpine
+          # Install envsubst (from gettext) to substitute runtime env vars
+          RUN apk add --no-cache gettext
+
+          # Static files built by Vite (including public/runtime-config.json)
           COPY dist /usr/share/nginx/html
+
+          # Add a minimal entrypoint to substitute env vars at container start
+          COPY docker-entrypoint.sh /docker-entrypoint.sh
+          RUN chmod +x /docker-entrypoint.sh
+
           EXPOSE 80
+          CMD ["/docker-entrypoint.sh"]
+          EOF
+
+          cat > docker-entrypoint.sh <<'EOF'
+          #!/bin/sh
+          set -eu
+
+          HTML_DIR=/usr/share/nginx/html
+
+          # If runtime-config.json exists, substitute $VARS into it in-place
+          if [ -f "$HTML_DIR/runtime-config.json" ]; then
+            envsubst < "$HTML_DIR/runtime-config.json" > "$HTML_DIR/runtime-config.json.tmp" && mv "$HTML_DIR/runtime-config.json.tmp" "$HTML_DIR/runtime-config.json"
+          fi
+
+          # Start nginx in foreground
+          exec nginx -g 'daemon off;'
           EOF
 
       - name: Log in to ${{ env.REGISTRY }}
@@ -77,6 +102,20 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Make GHCR package public
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          owner="${{ github.repository_owner }}"
+          repo="${{ github.event.repository.name }}"
+          owner_type=$(gh api /users/$owner --jq .type)
+          if [ "$owner_type" = "Organization" ]; then
+            path="/orgs/$owner/packages/container/$repo/visibility"
+          else
+            path="/users/$owner/packages/container/$repo/visibility"
+          fi
+          gh api -X PUT "$path" -f visibility=public
 
       - name: Deploy via Coolify webhook
         run: |
