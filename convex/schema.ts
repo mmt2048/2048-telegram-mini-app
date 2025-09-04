@@ -27,7 +27,10 @@ export default defineSchema({
         promocodeTypeId: v.id("promocodeTypes"),
         userId: v.id("users"),
         code: v.string(),
-    }).index("by_user", ["userId"]),
+        opened: v.boolean(),
+    })
+        .index("by_user", ["userId"])
+        .index("by_user_and_type", ["userId", "promocodeTypeId"]),
     friendships: defineTable({
         user1Id: v.id("users"),
         user2Id: v.id("users"),

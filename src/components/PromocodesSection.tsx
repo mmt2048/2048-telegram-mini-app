@@ -53,7 +53,7 @@ export const PromocodesSection = ({
         telegramUser: lp.tgWebAppData?.user,
     });
     const promocodeTypes = useQuery(api.promocodeTypes.getPromocodeTypes);
-    const createPromocodeMutation = useMutation(api.promocodes.createPromocode);
+    const markOpenedMutation = useMutation(api.promocodes.markOpened);
 
     type ConvexPromocodeType = {
         _id: Id<"promocodeTypes">;
@@ -88,17 +88,8 @@ export const PromocodesSection = ({
             (p) => p.promocodeTypeId === promocodeType._id
         );
         if (existingPromocode) {
-            return "opened";
+            return existingPromocode.opened ? "opened" : "ready";
         }
-
-        const requiredScore = promocodeType.score;
-        const userScore =
-            promocodeType.type === "record" ? recordScore : totalScore;
-
-        if (userScore && userScore >= requiredScore) {
-            return "ready";
-        }
-
         return "locked";
     };
 
@@ -110,12 +101,12 @@ export const PromocodesSection = ({
         -1
     );
 
-    const getPromocode = async (promocodeTypeId: Id<"promocodeTypes">) => {
-        setLoadingPromocodeId(promocodeTypeId as unknown as any);
+    const openPromocode = async (promocodeId: Id<"promocodes">) => {
+        setLoadingPromocodeId(promocodeId as unknown as any);
         try {
-            await createPromocodeMutation({
+            await markOpenedMutation({
                 telegramUser: lp.tgWebAppData?.user,
-                promocodeTypeId,
+                promocodeId,
             });
             hapticFeedback.notificationOccurred.ifAvailable("success");
         } finally {
@@ -146,9 +137,10 @@ export const PromocodesSection = ({
                     {processedPromocodeTypes!.map((type, index) => {
                         const status = getPromocodeStatus(type);
                         const header = `Промокод на ${type.discount} ₽ от ${type.minOrder} ₽`;
-                        const code = promocodes?.find(
+                        const promocodeDoc = promocodes?.find(
                             (p) => p.promocodeTypeId === type._id
-                        )?.code;
+                        );
+                        const code = promocodeDoc?.code;
                         const itemMode = getItemMode(index);
 
                         return (
@@ -163,15 +155,17 @@ export const PromocodesSection = ({
                                         очков
                                     </Text>
                                 )}
-                                {status === "ready" && (
+                                {status === "ready" && promocodeDoc && (
                                     <Button
                                         mode="filled"
                                         stretched
                                         loading={
                                             (loadingPromocodeId as unknown as string) ===
-                                            (type._id as unknown as string)
+                                            (promocodeDoc._id as unknown as string)
                                         }
-                                        onClick={() => getPromocode(type._id)}
+                                        onClick={() =>
+                                            openPromocode(promocodeDoc._id)
+                                        }
                                     >
                                         Получить
                                     </Button>

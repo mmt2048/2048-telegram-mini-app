@@ -6,7 +6,7 @@ import {
     useReducer,
     useRef,
 } from "react";
-import { isNil, throttle } from "lodash";
+import { isNil, throttle, debounce } from "lodash";
 import { useLocation } from "react-router-dom";
 import {
     mergeAnimationDuration,
@@ -35,39 +35,102 @@ export default function GameProvider({ children }: PropsWithChildren) {
     const finishGameMutation = useMutation(api.games.finishGame);
     const lp = useLaunchParams(true);
 
-    const revalidateExternalData = () => {};
+    // Debounced, latest-only score synchronization with single in-flight request
+    const inFlightRef = useRef(false);
+    const inFlightPromiseRef = useRef<Promise<void> | null>(null);
+    const latestQueuedScoreRef = useRef<number | null>(null);
+    const debouncedSenderRef = useRef<ReturnType<typeof debounce> | null>(null);
 
-    const pushScore = useCallback(
-        async (score: number) => {
-            try {
-                await setGameScoreMutation({
-                    score: score,
-                    telegramUser: lp.tgWebAppData?.user,
-                });
-                revalidateExternalData();
-            } catch (error) {
-                console.error("Error pushing score:", error);
+    const sendScore = useCallback(
+        async (score: number): Promise<void> => {
+            // If a request is in-flight, just record the latest score and piggyback
+            if (inFlightRef.current) {
+                latestQueuedScoreRef.current = score;
+                return inFlightPromiseRef.current ?? Promise.resolve();
+            }
+
+            inFlightRef.current = true;
+            const p = (async () => {
+                try {
+                    await setGameScoreMutation({
+                        score: score,
+                        telegramUser: lp.tgWebAppData?.user,
+                    });
+                } catch (error) {
+                    console.error("Error pushing score:", error);
+                } finally {
+                    inFlightRef.current = false;
+                }
+            })();
+
+            inFlightPromiseRef.current = p;
+            await p;
+
+            // If a newer score was queued while we were sending, send it next
+            if (latestQueuedScoreRef.current !== null) {
+                const next = latestQueuedScoreRef.current;
+                latestQueuedScoreRef.current = null;
+                await sendScore(next);
             }
         },
-        [setGameScoreMutation]
+        [setGameScoreMutation, lp.tgWebAppData?.user]
+    );
+
+    const pushScore = useCallback(
+        (score: number) => {
+            if (!debouncedSenderRef.current) {
+                debouncedSenderRef.current = debounce((s: number) => {
+                    void sendScore(s);
+                }, 300);
+            }
+            latestQueuedScoreRef.current = score;
+            debouncedSenderRef.current(score);
+        },
+        [sendScore]
+    );
+
+    const flushScore = useCallback(
+        async (finalScore?: number) => {
+            if (typeof finalScore === "number") {
+                latestQueuedScoreRef.current = finalScore;
+            }
+
+            // Flush any pending debounce immediately
+            if (
+                debouncedSenderRef.current &&
+                (debouncedSenderRef.current as any).flush
+            ) {
+                (debouncedSenderRef.current as any).flush();
+            }
+
+            // If there is a queued score, send it
+            if (latestQueuedScoreRef.current !== null) {
+                const s = latestQueuedScoreRef.current;
+                latestQueuedScoreRef.current = null;
+                await sendScore(s);
+                return;
+            }
+
+            // Otherwise, wait for in-flight send to complete if any
+            if (inFlightPromiseRef.current) {
+                await inFlightPromiseRef.current;
+            }
+        },
+        [sendScore]
     );
 
     const finishCurrentGame = useCallback(
         async (finalScore: number) => {
             try {
-                await setGameScoreMutation({
-                    score: finalScore,
-                    telegramUser: lp.tgWebAppData?.user,
-                });
+                await flushScore(finalScore);
                 await finishGameMutation({
                     telegramUser: lp.tgWebAppData?.user,
                 });
-                revalidateExternalData();
             } catch (error) {
                 console.error("Error finishing game:", error);
             }
         },
-        [setGameScoreMutation, finishGameMutation]
+        [finishGameMutation, flushScore]
     );
 
     const loadSavedState = () => {
@@ -194,7 +257,7 @@ export default function GameProvider({ children }: PropsWithChildren) {
         }
     }, [gameState.hasChanged]);
 
-    // Sync score to backend on every move
+    // Sync score to backend on every move (debounced, latest-only)
     useEffect(() => {
         if (gameState.hasChanged && gameState.status === "ongoing") {
             void pushScore(gameState.score);
@@ -241,7 +304,7 @@ export default function GameProvider({ children }: PropsWithChildren) {
             });
 
             if (document.hidden && gameState.status === "ongoing") {
-                void pushScore(gameState.score);
+                void flushScore(gameState.score);
             }
         };
 
@@ -255,7 +318,7 @@ export default function GameProvider({ children }: PropsWithChildren) {
             );
             console.log("Removed visibility change listener");
         };
-    }, [gameState.score, gameState.status, pushScore]);
+    }, [gameState.score, gameState.status, flushScore]);
 
     // Save game score when navigating away from game page
     const location = useLocation();
@@ -267,11 +330,11 @@ export default function GameProvider({ children }: PropsWithChildren) {
             wasOnGamePage && location.pathname !== "/game";
 
         if (isLeavingGamePage && gameState.status === "ongoing") {
-            void pushScore(gameState.score);
+            void flushScore(gameState.score);
         }
 
         prevLocationRef.current = location;
-    }, [location.pathname, gameState.score, gameState.status, pushScore]);
+    }, [location.pathname, gameState.score, gameState.status, flushScore]);
 
     const checkGameState = () => {
         const { tiles, board } = gameState;
