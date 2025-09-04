@@ -3,10 +3,10 @@ import { v } from "convex/values";
 
 export default defineSchema({
     games: defineTable({
-        userId: v.optional(v.id("users")),
+        userId: v.id("users"),
         score: v.number(),
         status: v.union(v.literal("in_progress"), v.literal("finished")),
-        updatedAt: v.optional(v.number()),
+        updatedAt: v.number(),
     })
         .index("by_user_and_status", ["userId", "status"])
         .index("by_user", ["userId"]),
@@ -27,7 +27,7 @@ export default defineSchema({
         promocodeTypeId: v.id("promocodeTypes"),
         userId: v.id("users"),
         code: v.string(),
-        opened: v.boolean(),
+        opened: v.optional(v.boolean()),
     })
         .index("by_user", ["userId"])
         .index("by_user_and_type", ["userId", "promocodeTypeId"]),
