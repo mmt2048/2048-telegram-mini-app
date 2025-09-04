@@ -103,20 +103,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Make GHCR package public
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          owner="${{ github.repository_owner }}"
-          repo="${{ github.event.repository.name }}"
-          owner_type=$(gh api /users/$owner --jq .type)
-          if [ "$owner_type" = "Organization" ]; then
-            path="/orgs/$owner/packages/container/$repo/visibility"
-          else
-            path="/users/$owner/packages/container/$repo/visibility"
-          fi
-          gh api -X PUT "$path" -f visibility=public
-
       - name: Deploy via Coolify webhook
         run: |
           curl -fsSL -X GET "${{ secrets.COOLIFY_WEBHOOK }}" \
