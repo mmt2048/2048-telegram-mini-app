@@ -18,15 +18,17 @@ export default function PromocodeProgress() {
     });
 
     const closest = (() => {
-        const unopened = (promocodeTypes ?? []).filter(
+        const unopenedTypes = (promocodeTypes ?? []).filter(
             (pt) => !userPromocodes?.some((up) => up.promocodeTypeId === pt._id)
         );
-        return unopened
+
+        const currentRecord = game?.score ?? 0;
+        const currentTotal = (totalScore ?? 0) + (game?.score ?? 0);
+
+        return unopenedTypes
             .map((pt) => {
                 const current =
-                    pt.type === "record"
-                        ? (game?.score ?? 0)
-                        : (totalScore ?? 0);
+                    pt.type === "record" ? currentRecord : currentTotal;
                 const left = (pt.score ?? 0) - current;
                 return { pt, left } as const;
             })
