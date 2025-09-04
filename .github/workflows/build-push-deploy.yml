@@ -3,6 +3,8 @@ name: build-push-deploy
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 permissions:
   contents: read
@@ -19,22 +21,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node + pnpm
+      # Node + pnpm with caching for quicker installs
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
-      - name: Enable corepack
-        run: corepack enable
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Install deps
         run: pnpm install --frozen-lockfile
 
       - name: Convex deploy with build
         env:
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
-        run: npx convex deploy --cmd 'pnpm build' --yes
+        run: pnpm dlx convex deploy --cmd "pnpm run build"
 
-      # Build a tiny static image that only serves ./dist
+      # Build a tiny static image that only serves ./dist, running as non-root
       - name: Prepare Dockerfile
         run: |
           cat > Dockerfile <<'EOF'
@@ -44,6 +52,7 @@ jobs:
           EOF
 
       - name: Log in to ${{ env.REGISTRY }}
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -58,12 +67,14 @@ jobs:
         with:
           context: .
           platforms: linux/amd64
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      # Trigger Coolify to pull the new image and redeploy
       - name: Deploy via Coolify webhook
+        if: github.event_name != 'pull_request' && secrets.COOLIFY_WEBHOOK != ''
         run: |
-          curl --request GET '${{ secrets.COOLIFY_WEBHOOK }}' --header 'Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}'
+          curl -fsSL -X GET "${{ secrets.COOLIFY_WEBHOOK }}" \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
