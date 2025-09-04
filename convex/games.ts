@@ -46,6 +46,11 @@ export const setGameScore = mutation({
 
         if (!inProgressGame) return createNewGame(ctx, user._id, args.score);
 
+        // Monotonic guard: never decrease score due to out-of-order or spammy updates
+        if (args.score <= inProgressGame.score) {
+            return;
+        }
+
         await ctx.db.patch(inProgressGame._id, {
             score: args.score,
             updatedAt: Date.now(),
