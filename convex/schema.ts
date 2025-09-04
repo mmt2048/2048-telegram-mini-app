@@ -27,7 +27,7 @@ export default defineSchema({
         promocodeTypeId: v.id("promocodeTypes"),
         userId: v.id("users"),
         code: v.string(),
-        opened: v.optional(v.boolean()),
+        opened: v.boolean(),
     })
         .index("by_user", ["userId"])
         .index("by_user_and_type", ["userId", "promocodeTypeId"]),

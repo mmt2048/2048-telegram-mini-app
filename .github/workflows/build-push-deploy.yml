@@ -35,10 +35,8 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile
 
-      - name: Convex deploy with build
-        env:
-          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
-        run: pnpm dlx convex deploy --cmd "pnpm run build" --yes
+      - name: Build web app
+        run: pnpm run build
 
       # Build a tiny static image that only serves ./dist, running as non-root
       - name: Prepare Dockerfile
@@ -84,3 +82,8 @@ jobs:
         run: |
           curl -fsSL -X GET "${{ secrets.COOLIFY_WEBHOOK }}" \
             -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
+
+      - name: Convex deploy (run last)
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+        run: pnpm dlx convex deploy --yes
