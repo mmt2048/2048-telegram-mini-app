@@ -1,5 +1,10 @@
 import { useLaunchParams } from "@telegram-apps/sdk-react";
-import { Cell, Progress, Section } from "@telegram-apps/telegram-ui";
+import {
+    CircularProgress,
+    Section,
+    Text,
+    Subheadline,
+} from "@telegram-apps/telegram-ui";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { formatNumberWithSpaces } from "@/helper/formatter";
@@ -17,62 +22,91 @@ export default function PromocodeProgress() {
         telegramUser: lp.tgWebAppData?.user,
     });
 
-    const closest = (() => {
-        const unopenedTypes = (promocodeTypes ?? []).filter(
-            (pt) => !userPromocodes?.some((up) => up.promocodeTypeId === pt._id)
-        );
+    const currentRecord = game?.score ?? 0;
+    const currentTotal = totalScore ?? 0;
 
-        const currentRecord = game?.score ?? 0;
-        const currentTotal = (totalScore ?? 0) + (game?.score ?? 0);
+    const unopenedTypes = (promocodeTypes ?? []).filter(
+        (pt) => !userPromocodes?.some((up) => up.promocodeTypeId === pt._id)
+    );
 
-        return unopenedTypes
-            .map((pt) => {
-                const current =
-                    pt.type === "record" ? currentRecord : currentTotal;
-                const left = (pt.score ?? 0) - current;
-                return { pt, left } as const;
-            })
-            .filter((x) => x.left > 0)
-            .sort((a, b) => a.left - b.left)[0];
-    })();
+    const getNextTargetForType = (type: "record" | "total") => {
+        const candidates = unopenedTypes
+            .filter((pt) => pt.type === type)
+            .map((pt) => pt.score ?? 0)
+            .sort((a, b) => a - b);
+        return candidates[0];
+    };
 
-    const closesPromocode = closest?.pt;
-    const left = closest?.left ?? 0;
+    const recordTarget = getNextTargetForType("record");
+    const totalTarget = getNextTargetForType("total");
 
-    const progress = (() => {
-        if (!closesPromocode) return 0;
-        const target = closesPromocode.score;
-        if (!target || target <= 0) return 0;
-        const pct = ((target - left) / target) * 100;
-        return Math.min(100, Math.max(0, pct));
-    })();
-
-    const message = (() => {
-        if (!closesPromocode) return "Все промокоды получены 🎉";
-        return closesPromocode.type === "record"
-            ? `Осталось ${formatNumberWithSpaces(
-                  left
-              )} очков в этой игре до промокода`
-            : `Осталось ${formatNumberWithSpaces(left)} очков до промокода`;
-    })();
+    const panels = [
+        {
+            key: "record",
+            title: "В этой игре",
+            current: currentRecord,
+            target: recordTarget,
+            progress:
+                typeof recordTarget === "number" && recordTarget > 0
+                    ? Math.min(
+                          100,
+                          Math.max(0, (currentRecord / recordTarget) * 100)
+                      )
+                    : 100,
+        },
+        {
+            key: "total",
+            title: "За все игры",
+            current: currentTotal,
+            target: totalTarget,
+            progress:
+                typeof totalTarget === "number" && totalTarget > 0
+                    ? Math.min(
+                          100,
+                          Math.max(0, (currentTotal / totalTarget) * 100)
+                      )
+                    : 100,
+        },
+    ];
 
     return (
-        <Section>
-            <Cell
-                interactiveAnimation="opacity"
-                subhead={
-                    <Progress
-                        value={progress}
-                        style={{
-                            height: "1em",
-                            marginTop: "0.2em",
-                            marginBottom: "0.4em",
-                        }}
-                    />
-                }
+        <Section footer="До промокода осталось еще немного!">
+            <div
+                style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    width: "auto",
+                    margin: "0 1.5em",
+                }}
             >
-                {message}
-            </Cell>
+                {panels.map((p) => (
+                    <div
+                        key={p.key}
+                        style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            margin: "1em 0",
+                            flex: 1,
+                        }}
+                    >
+                        <Text weight="2" style={{ marginBottom: "0.1em" }}>
+                            {p.title}
+                        </Text>
+                        <CircularProgress progress={p.progress} size="large" />
+                        <Subheadline
+                            style={{ color: "var(--tgui--hint_color)" }}
+                        >
+                            {formatNumberWithSpaces(p.current)} /{" "}
+                            {typeof p.target === "number"
+                                ? formatNumberWithSpaces(p.target)
+                                : "—"}
+                        </Subheadline>
+                    </div>
+                ))}
+            </div>
         </Section>
     );
 }
