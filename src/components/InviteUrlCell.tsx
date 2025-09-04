@@ -9,6 +9,7 @@ import {
 import { Cell } from "@telegram-apps/telegram-ui";
 import { useQuery } from "convex/react";
 import { useState } from "react";
+import { loadRuntimeConfig } from "@/helper/runtimeConfig";
 
 type InviteUrlCellProps = {
     copiedDuration?: number;
@@ -26,7 +27,20 @@ export const InviteUrlCell = ({
     const initData = retrieveLaunchParams();
     console.log(`initData:`, initData);
 
-    const url = `${import.meta.env.VITE_MINI_APP_URL}?startapp=friend_${me?._id}`;
+    const [miniAppUrl, setMiniAppUrl] = useState<string | undefined>(
+        import.meta.env.VITE_MINI_APP_URL as string | undefined
+    );
+
+    // Lazy-load runtime config once when component mounts
+    useState(() => {
+        void (async () => {
+            const cfg = await loadRuntimeConfig();
+            if (cfg.VITE_MINI_APP_URL) setMiniAppUrl(cfg.VITE_MINI_APP_URL);
+        })();
+        return undefined;
+    });
+
+    const url = `${miniAppUrl}?startapp=friend_${me?._id}`;
 
     const copy = () => {
         navigator.clipboard
