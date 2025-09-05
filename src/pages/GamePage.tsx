@@ -9,6 +9,7 @@ import PromocodeProgress from "@/components/Game/components/promocode-progress";
 import MobileSwiper, {
     SwipeInput,
 } from "@/components/Game/components/mobile-swiper";
+import PromocodeAwardModal from "@/components/PromocodeAwardModal";
 
 const GamePage: React.FC = () => {
     const { moveTiles, status } = useContext(GameContext);
@@ -33,6 +34,7 @@ const GamePage: React.FC = () => {
         <Page back={false} swipeable={false} flexChildren={true}>
             <MobileSwiper onSwipe={handleSwipe} disabled={status === "lost"}>
                 <List>
+                    <PromocodeAwardModal />
                     <Score />
 
                     <div

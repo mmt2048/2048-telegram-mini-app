@@ -1,16 +1,10 @@
-import {
-    Button,
-    Section,
-    Timeline,
-    Text,
-    Skeleton,
-} from "@telegram-apps/telegram-ui";
+import { Section, Timeline, Text, Skeleton } from "@telegram-apps/telegram-ui";
 import { TimelineItem } from "@telegram-apps/telegram-ui/dist/components/Blocks/Timeline/components/TimelineItem/TimelineItem";
 import { formatNumberWithSpaces } from "@/helper/formatter";
-import { hapticFeedback, useLaunchParams } from "@telegram-apps/sdk-react";
+import { useLaunchParams } from "@telegram-apps/sdk-react";
 import { useEffect, useState } from "react";
-import { CopyButton } from "@/components/CopyButton";
-import { useMutation, useQuery } from "convex/react";
+import PromocodeButton from "@/components/PromocodeButton";
+import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 
@@ -53,7 +47,6 @@ export const PromocodesSection = ({
         telegramUser: lp.tgWebAppData?.user,
     });
     const promocodeTypes = useQuery(api.promocodeTypes.getPromocodeTypes);
-    const markOpenedMutation = useMutation(api.promocodes.markOpened);
 
     type ConvexPromocodeType = {
         _id: Id<"promocodeTypes">;
@@ -66,9 +59,7 @@ export const PromocodesSection = ({
         ConvexPromocodeType[] | null
     >(null);
 
-    const [loadingPromocodeId, setLoadingPromocodeId] = useState<number | null>(
-        null
-    );
+    // Previously used for inline open button, no longer needed; kept for possible future UX tweaks
 
     useEffect(() => {
         if (promocodeTypes) {
@@ -101,18 +92,7 @@ export const PromocodesSection = ({
         -1
     );
 
-    const openPromocode = async (promocodeId: Id<"promocodes">) => {
-        setLoadingPromocodeId(promocodeId as unknown as any);
-        try {
-            await markOpenedMutation({
-                telegramUser: lp.tgWebAppData?.user,
-                promocodeId,
-            });
-            hapticFeedback.notificationOccurred.ifAvailable("success");
-        } finally {
-            setLoadingPromocodeId(null);
-        }
-    };
+    // kept for potential future usage; state updates now handled by PromocodeButtons
 
     const getItemMode = (index: number) => {
         if (index === lastActiveIndex) {
@@ -155,23 +135,17 @@ export const PromocodesSection = ({
                                         очков
                                     </Text>
                                 )}
-                                {status === "ready" && promocodeDoc && (
-                                    <Button
-                                        mode="filled"
+                                {promocodeDoc && (
+                                    <PromocodeButton
+                                        promocodeId={promocodeDoc._id}
+                                        code={code ?? "—"}
+                                        opened={status === "opened"}
+                                        size="m"
                                         stretched
-                                        loading={
-                                            (loadingPromocodeId as unknown as string) ===
-                                            (promocodeDoc._id as unknown as string)
-                                        }
-                                        onClick={() =>
-                                            openPromocode(promocodeDoc._id)
-                                        }
-                                    >
-                                        Получить
-                                    </Button>
-                                )}
-                                {status === "opened" && (
-                                    <CopyButton>{code ?? "—"}</CopyButton>
+                                        onOpened={() => {
+                                            /* no-op; local component handles UI state */
+                                        }}
+                                    />
                                 )}
                             </TimelineItem>
                         );
