@@ -53,6 +53,9 @@ importers:
       react-responsive:
         specifier: 9.0.2
         version: 9.0.2(react@18.3.1)
+      react-rewards:
+        specifier: ^2.1.0
+        version: 2.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
         specifier: ^6.23.0
         version: 6.29.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2200,6 +2203,12 @@ packages:
     engines: {node: '>=0.10'}
     peerDependencies:
       react: '>=16.8.0'
+
+  react-rewards@2.1.0:
+    resolution: {integrity: sha512-99EgPVXWWA7qphBnFAGxEh74HJIkskChdxUuaiCuYjdsOSUmsIzB3xwaaXCHr6dr9l7locYFPFiqelZ5gCLpew==}
+    peerDependencies:
+      react: '>=15'
+      react-dom: '>=15'
 
   react-router-dom@6.29.0:
     resolution: {integrity: sha512-pkEbJPATRJ2iotK+wUwHfy0xs2T59YPEN8BQxVCPeBZvK7kfPESRc/nyxzdcxR17hXgUPYx2whMwl+eo9cUdnQ==}
@@ -4780,6 +4789,11 @@ snapshots:
       prop-types: 15.8.1
       react: 18.3.1
       shallow-equal: 1.2.1
+
+  react-rewards@2.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+    dependencies:
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
 
   react-router-dom@6.29.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
