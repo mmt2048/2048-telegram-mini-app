@@ -5,11 +5,11 @@ import { useContext } from "react";
 import { hapticFeedback } from "@telegram-apps/sdk-react";
 
 export default function Splash({ heading = "You lost!" }) {
-    const { startGame } = useContext(GameContext);
+    const { restartGame } = useContext(GameContext);
 
     const handleStartGame = () => {
         hapticFeedback.impactOccurred.ifAvailable("medium");
-        void startGame();
+        void restartGame();
     };
 
     return (

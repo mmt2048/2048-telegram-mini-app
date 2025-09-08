@@ -11,3 +11,19 @@ body {
 body::-webkit-scrollbar {
     display: none;
 }
+
+/* Hide scrollbars globally */
+/* Firefox */
+* {
+    scrollbar-width: none;
+}
+
+/* IE and old Edge */
+* {
+    -ms-overflow-style: none;
+}
+
+/* Chrome, Safari, Opera */
+*::-webkit-scrollbar {
+    display: none;
+}
