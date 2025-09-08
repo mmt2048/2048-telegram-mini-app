@@ -27,6 +27,7 @@ export const GameContext = createContext({
     moveTiles: (_: MoveDirection) => {},
     getTiles: () => [] as Tile[],
     startGame: () => {},
+    restartGame: () => {},
 });
 
 export default function GameProvider({ children }: PropsWithChildren) {
@@ -229,6 +230,15 @@ export default function GameProvider({ children }: PropsWithChildren) {
         return initializationPromise.current;
     };
 
+    const restartGame = useCallback(async () => {
+        try {
+            await finishCurrentGame(gameState.score);
+        } catch (error) {
+            console.error("Error finishing game on restart:", error);
+        }
+        await startGame();
+    }, [finishCurrentGame, gameState.score, startGame]);
+
     // Handle game initialization after reset
     useEffect(() => {
         if (
@@ -275,24 +285,7 @@ export default function GameProvider({ children }: PropsWithChildren) {
         localStorage.setItem("gameState", JSON.stringify(gameState));
     }, [gameState]);
 
-    useEffect(() => {
-        console.log("Game status effect:", {
-            status: gameState.status,
-            score: gameState.score,
-        });
-
-        if (gameState.status === "lost") {
-            const updateGameScore = async () => {
-                try {
-                    await finishCurrentGame(gameState.score);
-                } catch (error) {
-                    console.error("Error in game update process:", error);
-                }
-            };
-
-            void updateGameScore();
-        }
-    }, [gameState.status, gameState.score, finishCurrentGame]);
+    // Removed auto-finish on loss; finishing is now triggered explicitly on restart
 
     // Save game score when user switches tabs or navigates away
     useEffect(() => {
@@ -376,6 +369,7 @@ export default function GameProvider({ children }: PropsWithChildren) {
                 getTiles,
                 moveTiles,
                 startGame,
+                restartGame,
             }}
         >
             {children}
