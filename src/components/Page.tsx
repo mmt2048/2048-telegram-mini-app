@@ -4,6 +4,7 @@ import { swipeBehavior } from "@telegram-apps/sdk-react";
 import { PropsWithChildren, useEffect, useState } from "react";
 import BottomNavBar from "./BottomNavBar";
 import { Stack } from "@mui/material";
+import { Caption, Image } from "@telegram-apps/telegram-ui";
 
 export function Page({
     children,
@@ -45,14 +46,20 @@ export function Page({
             <header
                 style={{
                     display: "flex",
-                    justifyContent: "center",
-                    width: "100%",
-                    padding: "0.9rem 0",
-                    color: "#ff462d",
+                    justifyContent: "space-between",
+                    padding: "0 1.5rem",
                 }}
             >
                 <svg
-                    style={{ width: "100px" }}
+                    style={{
+                        width: "100px",
+                        cursor: "pointer",
+                        color: "#ff462d",
+                        padding: "0.9rem 0",
+                    }}
+                    onClick={() =>
+                        window.open("https://trk.mail.ru/c/kjtii2", "_blank")
+                    }
                     viewBox="0 0 96 34"
                     fill="none"
                     xmlns="http://www.w3.org/2000/svg"
@@ -106,6 +113,41 @@ export function Page({
                         fill="currentColor"
                     ></path>
                 </svg>
+                <div
+                    style={{
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "1rem",
+                    }}
+                >
+                    <Caption
+                        onClick={() =>
+                            window.open(
+                                "https://trk.mail.ru/c/kjtii2",
+                                "_blank"
+                            )
+                        }
+                        level="2"
+                        style={{
+                            textAlign: "right",
+                        }}
+                    >
+                        Открыть
+                        <br />
+                        приложение
+                    </Caption>
+                    <Image
+                        onClick={() =>
+                            window.open(
+                                "https://trk.mail.ru/c/kjtii2",
+                                "_blank"
+                            )
+                        }
+                        src="https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/be/5d/c1/be5dc140-bdc5-911c-6e83-102cd04c1d35/AppIcon-0-0-1x_U007epad-0-1-85-220.png/540x540bb.jpg"
+                        size={40}
+                    />
+                </div>
             </header>
             <main
                 style={{
