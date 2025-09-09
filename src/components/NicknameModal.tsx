@@ -50,7 +50,7 @@ export const NicknameModal: React.FC<{
     return (
         <Modal
             header={<ModalHeader>Введите ваше имя</ModalHeader>}
-            modal={false}
+            modal
             open={isOpen}
             onOpenChange={(open) => setIsOpen(open)}
         >

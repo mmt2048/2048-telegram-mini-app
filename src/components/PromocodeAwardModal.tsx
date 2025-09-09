@@ -109,7 +109,7 @@ export const PromocodeAwardModal: React.FC = () => {
     return (
         <Modal
             header={<ModalHeader>Новый промокод</ModalHeader>}
-            modal={false}
+            modal
             open={!!activePromocode}
             onOpenChange={(open) => {
                 if (!open) onClose();
