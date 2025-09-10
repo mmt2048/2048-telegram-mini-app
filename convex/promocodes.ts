@@ -65,7 +65,7 @@ export const getLastPromocodeId = query({
     },
 });
 
-export const getPromocodeWithUser = query({
+export const getPromocodeWithUserAndType = query({
     args: {
         promocodeId: v.id("promocodes"),
     },
@@ -73,7 +73,8 @@ export const getPromocodeWithUser = query({
         const pc = await ctx.db.get(args.promocodeId);
         if (!pc) return null;
         const user = await ctx.db.get(pc.userId);
-        return { promocode: pc, user };
+        const promocodeType = await ctx.db.get(pc.promocodeTypeId);
+        return { promocode: pc, user, promocodeType };
     },
 });
 
