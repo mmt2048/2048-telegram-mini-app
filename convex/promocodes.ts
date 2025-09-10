@@ -53,6 +53,30 @@ export const markOpened = mutation({
     },
 });
 
+export const getLastPromocodeId = query({
+    args: {},
+    handler: async (ctx) => {
+        const pc = await ctx.db
+            .query("promocodes")
+            .withIndex("by_creation_time")
+            .order("desc")
+            .first();
+        return pc ? pc._id : null;
+    },
+});
+
+export const getPromocodeWithUser = query({
+    args: {
+        promocodeId: v.id("promocodes"),
+    },
+    handler: async (ctx, args) => {
+        const pc = await ctx.db.get(args.promocodeId);
+        if (!pc) return null;
+        const user = await ctx.db.get(pc.userId);
+        return { promocode: pc, user };
+    },
+});
+
 function generateCode(): string {
     return Math.random().toString(36).substring(2, 14).toUpperCase();
 }
@@ -67,7 +91,9 @@ export async function awardEligiblePromocodes(
     const types = await ctx.db.query("promocodeTypes").collect();
 
     // Helper to ensure a promocode exists for a type
-    const ensurePromocodeForType = async (promocodeTypeId: Id<"promocodeTypes">) => {
+    const ensurePromocodeForType = async (
+        promocodeTypeId: Id<"promocodeTypes">
+    ) => {
         const existing = await ctx.db
             .query("promocodes")
             .withIndex("by_user_and_type", (q) =>
