@@ -117,9 +117,14 @@ export const PromocodesSection = ({
                                             {" "}
                                             от {type.minOrder} ₽
                                         </Text>
-                                        <Badge mode="secondary" type="number">
-                                            {type.label}
-                                        </Badge>
+                                        {type.label && (
+                                            <Badge
+                                                mode="secondary"
+                                                type="number"
+                                            >
+                                                {type.label}
+                                            </Badge>
+                                        )}
                                     </>
                                 }
                                 mode={itemMode}
@@ -132,8 +137,8 @@ export const PromocodesSection = ({
                                             stretched
                                             mode="bezeled"
                                         >
-                                            {formatNumberWithSpaces(type.score)}
-                                             очков
+                                            {formatNumberWithSpaces(type.score)}{" "}
+                                            очков
                                         </Button>
                                     )}
                                     {promocodeDoc && (

@@ -18,7 +18,7 @@ export default defineSchema({
         nickname: v.string(),
     }).index("by_telegram_id", ["telegramId"]),
     promocodeTypes: defineTable({
-        sort_order: v.optional(v.number()),
+        sort_order: v.number(),
         label: v.optional(v.string()),
         discount: v.number(),
         minOrder: v.number(),
