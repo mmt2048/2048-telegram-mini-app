@@ -74,14 +74,10 @@ export const setGameScore = mutation({
             const recordCandidate = Math.max(recordFinished, args.score);
             const totalCandidate = totalFinished + args.score; // include current in-progress score
 
-            await awardEligiblePromocodes(
-                ctx as unknown as MutationCtx,
-                user._id,
-                {
-                    recordScore: recordCandidate,
-                    totalScore: totalCandidate,
-                }
-            );
+            await awardEligiblePromocodes(ctx, user._id, {
+                recordScore: recordCandidate,
+                totalScore: totalCandidate,
+            });
         } catch (e) {
             // Do not fail score updates if awarding fails; log instead
             console.error("awardEligiblePromocodes(setGameScore)", e);
