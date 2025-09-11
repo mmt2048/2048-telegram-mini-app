@@ -47,6 +47,7 @@ export const StatsSection = () => {
                         type="text"
                         interactiveAnimation="opacity"
                         before={stat.icon}
+                        style={{ cursor: "default" }}
                     >
                         {showStats && formatNumberWithSpaces(stat.value)}
                         {!showStats && (

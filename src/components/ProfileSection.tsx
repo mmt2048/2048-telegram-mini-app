@@ -21,6 +21,7 @@ export const ProfileSection = () => {
                 subtitle="Имя"
                 after={
                     <EditIcon
+                        style={{ cursor: "pointer" }}
                         onClick={() => {
                             hapticFeedback.impactOccurred.ifAvailable("light");
                             setIsModalOpen(true);
@@ -28,6 +29,7 @@ export const ProfileSection = () => {
                     />
                 }
                 interactiveAnimation="opacity"
+                style={{ cursor: "default" }}
             >
                 {me !== undefined && me?.nickname}
                 {me === undefined && (

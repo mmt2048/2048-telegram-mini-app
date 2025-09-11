@@ -17,7 +17,7 @@ export default function PromocodeProgress() {
     const totalScore = useQuery(api.games.getTotalScore, {
         telegramUser: lp.tgWebAppData?.user,
     });
-    const promocodeTypes = useQuery(api.promocodeTypes.getPromocodeTypes);
+    const promocodeTypes = useQuery(api.promocodeTypes.getPromocodeTypes, {});
     const userPromocodes = useQuery(api.promocodes.getUserPromocodes, {
         telegramUser: lp.tgWebAppData?.user,
     });

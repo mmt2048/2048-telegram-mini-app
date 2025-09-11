@@ -18,11 +18,13 @@ export default defineSchema({
         nickname: v.string(),
     }).index("by_telegram_id", ["telegramId"]),
     promocodeTypes: defineTable({
+        sort_order: v.optional(v.number()),
+        label: v.optional(v.string()),
         discount: v.number(),
         minOrder: v.number(),
         score: v.number(),
         type: v.union(v.literal("record"), v.literal("total")),
-    }),
+    }).index("by_type", ["type"]),
     promocodes: defineTable({
         promocodeTypeId: v.id("promocodeTypes"),
         userId: v.id("users"),
@@ -31,6 +33,10 @@ export default defineSchema({
     })
         .index("by_user", ["userId"])
         .index("by_user_and_type", ["userId", "promocodeTypeId"]),
+    availablePromocodes: defineTable({
+        promocodeTypeId: v.id("promocodeTypes"),
+        code: v.string(),
+    }).index("by_type", ["promocodeTypeId"]),
     friendships: defineTable({
         user1Id: v.id("users"),
         user2Id: v.id("users"),

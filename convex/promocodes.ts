@@ -78,10 +78,6 @@ export const getPromocodeWithUserAndType = query({
     },
 });
 
-function generateCode(): string {
-    return Math.random().toString(36).substring(2, 14).toUpperCase();
-}
-
 export async function awardEligiblePromocodes(
     ctx: MutationCtx,
     userId: Id<"users">,
@@ -91,7 +87,7 @@ export async function awardEligiblePromocodes(
 
     const types = await ctx.db.query("promocodeTypes").collect();
 
-    // Helper to ensure a promocode exists for a type
+    // Helper to ensure a promocode exists for a type by consuming from available pool
     const ensurePromocodeForType = async (
         promocodeTypeId: Id<"promocodeTypes">
     ) => {
@@ -102,12 +98,26 @@ export async function awardEligiblePromocodes(
             )
             .first();
         if (existing) return existing._id;
-        return await ctx.db.insert("promocodes", {
+
+        // Pull one available promocode for this type
+        const available = await ctx.db
+            .query("availablePromocodes")
+            .withIndex("by_type", (q) =>
+                q.eq("promocodeTypeId", promocodeTypeId)
+            )
+            .first();
+
+        if (!available) return null;
+
+        const newId = await ctx.db.insert("promocodes", {
             userId,
             promocodeTypeId,
-            code: generateCode(),
+            code: available.code,
             opened: false,
         });
+
+        await ctx.db.delete(available._id);
+        return newId;
     };
 
     for (const t of types) {

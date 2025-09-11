@@ -97,8 +97,7 @@ export const PromocodeButton: React.FC<{
     };
 
     return (
-        <div style={{ display: "grid", gap: 8, width: "100%" }}>
-            {/* Anchor is created in document.body at trigger time to avoid modal transforms */}
+        <>
             {!isOpenedLocal && (
                 <Button
                     size={size}
@@ -111,13 +110,16 @@ export const PromocodeButton: React.FC<{
                 </Button>
             )}
             {isOpenedLocal && (
-                <span ref={copyWrapRef} style={{ display: "inline-block" }}>
+                <span
+                    ref={copyWrapRef}
+                    style={{ display: "inline-block", width: "100%" }}
+                >
                     <CopyButton size={size} stretched={stretched}>
                         {code}
                     </CopyButton>
                 </span>
             )}
-        </div>
+        </>
     );
 };
 
