@@ -13,7 +13,7 @@ export default function Score() {
 
     return (
         <Section header="Очки">
-            <Cell interactiveAnimation="opacity">
+            <Cell interactiveAnimation="opacity" style={{ cursor: "default" }}>
                 {score !== undefined && <Title weight="2">{score}</Title>}
                 {score === undefined && (
                     <Skeleton visible={true}>

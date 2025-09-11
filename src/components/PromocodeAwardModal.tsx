@@ -14,7 +14,7 @@ export const PromocodeAwardModal: React.FC = () => {
     const promocodes = useQuery(api.promocodes.getUserPromocodes, {
         telegramUser: lp.tgWebAppData?.user,
     });
-    const promocodeTypes = useQuery(api.promocodeTypes.getPromocodeTypes);
+    const promocodeTypes = useQuery(api.promocodeTypes.getPromocodeTypes, {});
 
     const seenIdsRef = useRef<Set<string>>(new Set());
     const initializedRef = useRef(false);

@@ -80,12 +80,18 @@ export const FriendsSection = () => {
         >
             <Skeleton visible={friends === undefined}>
                 {friends !== undefined && friends?.length === 0 && (
-                    <Cell interactiveAnimation="opacity">Друзей пока нет</Cell>
+                    <Cell
+                        interactiveAnimation="opacity"
+                        style={{ cursor: "default" }}
+                    >
+                        Друзей пока нет
+                    </Cell>
                 )}
                 {friends?.map((friend) => (
                     <Cell
-                        key={(friend._id as unknown as string) ?? "friend"}
+                        key={friend._id}
                         interactiveAnimation="opacity"
+                        style={{ cursor: "default" }}
                         before={
                             <Avatar
                                 acronym={getAcronym(friend.nickname)}
