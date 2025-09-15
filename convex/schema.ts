@@ -24,6 +24,7 @@ export default defineSchema({
         minOrder: v.number(),
         score: v.number(),
         type: v.union(v.literal("record"), v.literal("total")),
+        url: v.optional(v.string()),
     }).index("by_type", ["type"]),
     promocodes: defineTable({
         promocodeTypeId: v.id("promocodeTypes"),
