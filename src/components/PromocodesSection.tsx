@@ -8,6 +8,7 @@ import {
 } from "@telegram-apps/telegram-ui";
 import { TimelineItem } from "@telegram-apps/telegram-ui/dist/components/Blocks/Timeline/components/TimelineItem/TimelineItem";
 import { formatNumberWithSpaces } from "@/helper/formatter";
+import { openLink } from "@telegram-apps/sdk-react";
 import { useLaunchParams } from "@telegram-apps/sdk-react";
 import PromocodeButton from "@/components/PromocodeButton";
 import { useQuery } from "convex/react";
@@ -121,6 +122,16 @@ export const PromocodesSection = ({
                                             <Badge
                                                 mode="secondary"
                                                 type="number"
+                                                onClick={() => {
+                                                    if (type.url) {
+                                                        openLink(type.url);
+                                                    }
+                                                }}
+                                                style={{
+                                                    cursor: type.url
+                                                        ? "pointer"
+                                                        : "default",
+                                                }}
                                             >
                                                 {type.label}
                                             </Badge>
