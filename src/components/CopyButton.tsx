@@ -61,7 +61,7 @@ export const CopyButton = ({
                 copy();
             }}
         >
-            {showCopied ? "Скопированно!" : children}
+            {showCopied ? "Скопировано!" : children}
         </Button>
     );
 };

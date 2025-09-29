@@ -76,7 +76,7 @@ export const InviteUrlCell = ({
                 }
             }}
         >
-            {showCopied ? "Скопированно!" : url.replace("https://", "")}
+            {showCopied ? "Скопировано!" : url.replace("https://", "")}
         </Cell>
     );
 };
