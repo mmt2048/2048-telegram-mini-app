@@ -57,29 +57,23 @@ export const setGameScore = mutation({
             updatedAt: Date.now(),
         });
 
-        // Auto-award promocodes for thresholds that depend on current and total scores
+        // Auto-award promocodes using precomputed totals + in-progress score
         try {
-            const finishedGames = await ctx.db
-                .query("games")
-                .withIndex("by_user", (q) => q.eq("userId", user._id))
-                .collect();
-            const recordFinished = finishedGames.reduce(
-                (max, g) => (g.score > max ? g.score : max),
-                0
+            const totals = await getUserTotalsByUserId(
+                ctx as unknown as QueryCtx,
+                user._id
             );
-            const totalFinished = finishedGames.reduce(
-                (sum, g) => sum + g.score,
-                0
+            const recordCandidate = Math.max(
+                totals?.recordScore ?? 0,
+                args.score
             );
-            const recordCandidate = Math.max(recordFinished, args.score);
-            const totalCandidate = totalFinished + args.score; // include current in-progress score
+            const totalCandidate = (totals?.totalScore ?? 0) + args.score;
 
             await awardEligiblePromocodes(ctx, user._id, {
                 recordScore: recordCandidate,
                 totalScore: totalCandidate,
             });
         } catch (e) {
-            // Do not fail score updates if awarding fails; log instead
             console.error("awardEligiblePromocodes(setGameScore)", e);
         }
     },
@@ -105,25 +99,23 @@ export const finishGame = mutation({
             updatedAt: Date.now(),
         });
 
-        // Recompute total and record and award any missed promocodes
+        // Incrementally update totals and award any missed promocodes
         try {
-            const finishedGames = await ctx.db
-                .query("games")
-                .withIndex("by_user", (q) => q.eq("userId", user._id))
-                .collect();
-            const record = finishedGames.reduce(
-                (max, g) => (g.score > max ? g.score : max),
-                0
+            await addFinishedScoreToTotals(ctx, user._id, inProgressGame.score);
+            const totals = await getUserTotalsByUserId(
+                ctx as unknown as QueryCtx,
+                user._id
             );
-            const total = finishedGames.reduce((sum, g) => sum + g.score, 0);
-            await awardEligiblePromocodes(
-                ctx as unknown as MutationCtx,
-                user._id,
-                {
-                    recordScore: record,
-                    totalScore: total,
-                }
-            );
+            if (totals) {
+                await awardEligiblePromocodes(
+                    ctx as unknown as MutationCtx,
+                    user._id,
+                    {
+                        recordScore: totals.recordScore,
+                        totalScore: totals.totalScore,
+                    }
+                );
+            }
         } catch (e) {
             console.error("awardEligiblePromocodes(finishGame)", e);
         }
@@ -192,4 +184,68 @@ export async function getInProgressGameByUserId(
         )
         .first();
     return game ?? null;
+}
+
+async function getUserTotalsByUserId(
+    ctx: QueryCtx | MutationCtx,
+    userId: Id<"users">
+) {
+    return await ctx.db
+        .query("userTotals")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .first();
+}
+
+function getTodayDateKey(): string {
+    const now = new Date();
+    return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`;
+}
+
+async function addFinishedScoreToTotals(
+    ctx: MutationCtx,
+    userId: Id<"users">,
+    finishedScore: number
+) {
+    const existing = await getUserTotalsByUserId(
+        ctx as unknown as QueryCtx,
+        userId
+    );
+    const todayKey = getTodayDateKey();
+
+    if (!existing) {
+        await ctx.db.insert("userTotals", {
+            userId,
+            totalScore: finishedScore,
+            recordScore: finishedScore,
+            negTotalScore: -finishedScore,
+            dailyBestScore: finishedScore,
+            negDailyBestScore: -finishedScore,
+            dailyResetDate: todayKey,
+            updatedAt: Date.now(),
+        });
+        return;
+    }
+
+    const nextRecord =
+        existing.recordScore < finishedScore
+            ? finishedScore
+            : existing.recordScore;
+
+    // Reset daily best if date changed
+    let dailyBest = existing.dailyBestScore ?? 0;
+    if (existing.dailyResetDate !== todayKey) {
+        dailyBest = finishedScore;
+    } else {
+        dailyBest = Math.max(dailyBest, finishedScore);
+    }
+
+    await ctx.db.patch(existing._id, {
+        totalScore: existing.totalScore + finishedScore,
+        recordScore: nextRecord,
+        negTotalScore: -(existing.totalScore + finishedScore),
+        dailyBestScore: dailyBest,
+        negDailyBestScore: -dailyBest,
+        dailyResetDate: todayKey,
+        updatedAt: Date.now(),
+    });
 }

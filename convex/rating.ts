@@ -15,6 +15,23 @@ type RatingRow = {
     _userConvexId?: Id<"users">;
 };
 
+type UserTotals = {
+    userId: Id<"users">;
+    totalScore: number;
+    dailyBestScore: number;
+    [key: string]: any;
+};
+
+type User = {
+    _id: Id<"users">;
+    _creationTime: number;
+    telegramId: number;
+    username: string;
+    firstName: string;
+    lastName: string;
+    nickname: string;
+};
+
 export const getRating = query({
     args: {
         telegramUser: v.any(),
@@ -25,15 +42,24 @@ export const getRating = query({
     handler: async (ctx, args) => {
         const currentUser = await getUserByTelegramUser(ctx, args.telegramUser);
 
-        const candidateUsers = await getCandidateUsers(
-            ctx,
-            args.scope,
-            currentUser?._id ?? null
-        );
+        let rows: RatingRow[];
 
-        const rows = await computeScores(ctx, candidateUsers, args.type);
+        if (args.scope === "global") {
+            rows = await getGlobalRating(
+                ctx,
+                args.type,
+                args.limit,
+                currentUser?._id ?? null
+            );
+        } else {
+            rows = await getFriendsRating(
+                ctx,
+                args.type,
+                currentUser?._id ?? null
+            );
+        }
 
-        // Sort by score desc and assign places (1-based)
+        // Sort by score descending and assign places (1-based)
         rows.sort((a, b) => b.score - a.score);
         rows.forEach((row, index) => (row.place = index + 1));
 
@@ -54,89 +80,166 @@ export const getRating = query({
     },
 });
 
-async function getCandidateUsers(
+// ============================================================================
+// Global Rating (uses indexed top-N queries)
+// ============================================================================
+
+async function getGlobalRating(
     ctx: QueryCtx,
-    scope: Scope,
+    type: RatingType,
+    limit: number,
     currentUserId: Id<"users"> | null
-) {
-    if (scope === "friends") {
-        if (!currentUserId) throw new Error("User not found");
-
-        const asUser1 = await ctx.db
-            .query("friendships")
-            .withIndex("by_user1", (q: any) => q.eq("user1Id", currentUserId))
-            .collect();
-        const asUser2 = await ctx.db
-            .query("friendships")
-            .withIndex("by_user2", (q: any) => q.eq("user2Id", currentUserId))
-            .collect();
-
-        const friendIds = new Set<Id<"users">>([
-            currentUserId,
-            ...asUser1.map((doc: any) => doc.user2Id),
-            ...asUser2.map((doc: any) => doc.user1Id),
-        ]);
-
-        const users = await Promise.all(
-            Array.from(friendIds).map((id) => ctx.db.get(id))
-        );
-        return users.filter((u): u is NonNullable<typeof u> => !!u);
-    }
-
-    // Global scope: all users
-    return await ctx.db.query("users").collect();
-}
-
-async function computeScores(
-    ctx: QueryCtx,
-    users: Array<{
-        _id: Id<"users">;
-        telegramId: number;
-        nickname?: string;
-    }>,
-    type: RatingType
 ): Promise<RatingRow[]> {
-    const now = Date.now();
-    const dayAgo = now - 24 * 60 * 60 * 1000;
+    const indexName =
+        type === "total" ? "by_negTotalScore" : "by_negDailyBestScore";
+    const scoreField = type === "total" ? "totalScore" : "dailyBestScore";
 
-    const result: RatingRow[] = [];
-    for (const user of users) {
-        const games = await ctx.db
-            .query("games")
-            .withIndex("by_user", (q: any) => q.eq("userId", user._id))
-            .collect();
+    // Fetch top N by score
+    const topTotals = await ctx.db
+        .query("userTotals")
+        .withIndex(indexName)
+        .take(limit);
 
-        if (type === "daily") {
-            const recent = games.filter(
-                (g: any) => (g.updatedAt ?? g._creationTime) >= dayAgo
-            );
-            if (recent.length === 0) continue;
-            const score = recent.reduce(
-                (max: number, g: any) => (g.score > max ? g.score : max),
-                0
-            );
-            result.push({
-                user_id: user.telegramId,
-                user_nickname: user.nickname,
-                score,
-                place: 0,
-                _userConvexId: user._id,
-            });
-        } else {
-            if (games.length === 0) continue;
-            const score = games.reduce(
-                (sum: number, g: any) => sum + g.score,
-                0
-            );
-            result.push({
-                user_id: user.telegramId,
-                user_nickname: user.nickname,
-                score,
-                place: 0,
-                _userConvexId: user._id,
-            });
+    const rows = await buildRatingRows(ctx, topTotals, scoreField);
+
+    // Add current user if not in top N
+    if (currentUserId && rows.every((r) => r._userConvexId !== currentUserId)) {
+        const currentUserRow = await fetchCurrentUserRow(
+            ctx,
+            currentUserId,
+            scoreField
+        );
+        if (currentUserRow) {
+            rows.push(currentUserRow);
         }
     }
 
-    return result;
+    return rows;
+}
+
+// ============================================================================
+// Friends Rating (fetches totals for each friend)
+// ============================================================================
+
+async function getFriendsRating(
+    ctx: QueryCtx,
+    type: RatingType,
+    currentUserId: Id<"users"> | null
+): Promise<RatingRow[]> {
+    if (!currentUserId) throw new Error("User not found");
+
+    const scoreField = type === "total" ? "totalScore" : "dailyBestScore";
+
+    // Get all friend user IDs (including current user)
+    const friendUsers = await getFriendUsers(ctx, currentUserId);
+
+    // Fetch totals for all friends in parallel
+    const totals = await Promise.all(
+        friendUsers.map((u) =>
+            ctx.db
+                .query("userTotals")
+                .withIndex("by_user", (q) => q.eq("userId", u._id))
+                .first()
+        )
+    );
+
+    // Build rows for friends with scores > 0
+    const rows: RatingRow[] = [];
+    for (let i = 0; i < friendUsers.length; i++) {
+        const user = friendUsers[i];
+        const userTotals = totals[i] as UserTotals | null;
+        const score = userTotals?.[scoreField] ?? 0;
+
+        if (score > 0) {
+            rows.push(createRatingRow(user, score));
+        }
+    }
+
+    return rows;
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+async function getFriendUsers(
+    ctx: QueryCtx,
+    currentUserId: Id<"users">
+): Promise<User[]> {
+    const [asUser1, asUser2] = await Promise.all([
+        ctx.db
+            .query("friendships")
+            .withIndex("by_user1", (q) => q.eq("user1Id", currentUserId))
+            .collect(),
+        ctx.db
+            .query("friendships")
+            .withIndex("by_user2", (q) => q.eq("user2Id", currentUserId))
+            .collect(),
+    ]);
+
+    const friendIds = new Set<Id<"users">>([
+        currentUserId,
+        ...asUser1.map((doc) => doc.user2Id),
+        ...asUser2.map((doc) => doc.user1Id),
+    ]);
+
+    const users = await Promise.all(
+        Array.from(friendIds).map((id) => ctx.db.get(id))
+    );
+
+    return users.filter((u): u is User => !!u);
+}
+
+async function buildRatingRows(
+    ctx: QueryCtx,
+    userTotalsArray: any[],
+    scoreField: string
+): Promise<RatingRow[]> {
+    const userIds = userTotalsArray.map((t) => t.userId);
+    const users = await Promise.all(userIds.map((id) => ctx.db.get(id)));
+    const usersMap = new Map(users.filter(Boolean).map((u: any) => [u._id, u]));
+
+    const rows: RatingRow[] = [];
+    for (const userTotals of userTotalsArray) {
+        const score = userTotals[scoreField] ?? 0;
+        if (score === 0) continue;
+
+        const user = usersMap.get(userTotals.userId);
+        if (!user) continue;
+
+        rows.push(createRatingRow(user as User, score));
+    }
+
+    return rows;
+}
+
+async function fetchCurrentUserRow(
+    ctx: QueryCtx,
+    userId: Id<"users">,
+    scoreField: string
+): Promise<RatingRow | null> {
+    const [userTotals, user] = await Promise.all([
+        ctx.db
+            .query("userTotals")
+            .withIndex("by_user", (q) => q.eq("userId", userId))
+            .first(),
+        ctx.db.get(userId),
+    ]);
+
+    if (!userTotals || !user) return null;
+
+    const score = (userTotals as any)[scoreField] ?? 0;
+    if (score === 0) return null;
+
+    return createRatingRow(user, score);
+}
+
+function createRatingRow(user: User, score: number): RatingRow {
+    return {
+        user_id: user.telegramId,
+        user_nickname: user.nickname,
+        score,
+        place: 0,
+        _userConvexId: user._id,
+    };
 }

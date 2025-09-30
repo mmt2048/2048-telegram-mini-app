@@ -9,7 +9,9 @@ export default defineSchema({
         updatedAt: v.number(),
     })
         .index("by_user_and_status", ["userId", "status"])
-        .index("by_user", ["userId"]),
+        .index("by_user", ["userId"])
+        .index("by_updated_at", ["updatedAt"])
+        .index("by_user_and_updated_at", ["userId", "updatedAt"]),
     users: defineTable({
         telegramId: v.number(),
         username: v.string(),
@@ -17,6 +19,19 @@ export default defineSchema({
         lastName: v.string(),
         nickname: v.string(),
     }).index("by_telegram_id", ["telegramId"]),
+    userTotals: defineTable({
+        userId: v.id("users"),
+        totalScore: v.number(),
+        recordScore: v.number(),
+        negTotalScore: v.number(),
+        dailyBestScore: v.number(),
+        negDailyBestScore: v.number(),
+        dailyResetDate: v.string(), // YYYY-MM-DD format for daily reset tracking
+        updatedAt: v.number(),
+    })
+        .index("by_user", ["userId"])
+        .index("by_negTotalScore", ["negTotalScore"])
+        .index("by_negDailyBestScore", ["negDailyBestScore"]),
     promocodeTypes: defineTable({
         sort_order: v.number(),
         label: v.optional(v.string()),
