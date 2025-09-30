@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import VideogameAssetIcon from "@mui/icons-material/VideogameAsset";
 import RedeemIcon from "@mui/icons-material/Redeem";
-import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
+// import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import { Tabbar } from "@telegram-apps/telegram-ui";
 import { hapticFeedback } from "@telegram-apps/sdk-react";
 

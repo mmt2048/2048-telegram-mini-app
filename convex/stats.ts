@@ -1,4 +1,4 @@
-import { query, QueryCtx } from "./_generated/server";
+import { query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 
 function startOfTodayMs(): number {
