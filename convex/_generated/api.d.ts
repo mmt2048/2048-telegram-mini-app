@@ -18,6 +18,7 @@ import type * as games from "../games.js";
 import type * as promocodeTypes from "../promocodeTypes.js";
 import type * as promocodes from "../promocodes.js";
 import type * as rating from "../rating.js";
+import type * as stats from "../stats.js";
 import type * as users from "../users.js";
 
 /**
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   promocodeTypes: typeof promocodeTypes;
   promocodes: typeof promocodes;
   rating: typeof rating;
+  stats: typeof stats;
   users: typeof users;
 }>;
 export declare const api: FilterApi<
