@@ -60,17 +60,17 @@ const BottomNavBar: React.FC<{
                 >
                     <RedeemIcon />
                 </Tabbar.Item>
-                <Tabbar.Item
+                {/* <Tabbar.Item
                     key={"/rating"}
                     text="Рейтинг"
                     selected={location.pathname === "/rating"}
-                    onClick={() => {
+                    onClick={() => {s
                         hapticFeedback.impactOccurred.ifAvailable("light");
                         navigate("/rating");
                     }}
                 >
                     <EmojiEventsIcon />
-                </Tabbar.Item>
+                </Tabbar.Item> */}
             </Tabbar>
         </div>
     );
