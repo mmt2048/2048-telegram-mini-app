@@ -3,7 +3,6 @@ import { query, QueryCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { getUserByTelegramUser } from "./users";
 
-type Scope = "global" | "friends";
 type RatingType = "daily" | "total";
 
 type RatingRow = {
