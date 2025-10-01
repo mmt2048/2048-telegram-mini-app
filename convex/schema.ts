@@ -23,15 +23,10 @@ export default defineSchema({
         userId: v.id("users"),
         totalScore: v.number(),
         recordScore: v.number(),
-        negTotalScore: v.optional(v.number()),
         dailyBestScore: v.number(),
-        negDailyBestScore: v.optional(v.number()),
         dailyResetDate: v.string(), // YYYY-MM-DD format for daily reset tracking
         updatedAt: v.number(),
-    })
-        .index("by_user", ["userId"])
-        .index("by_negTotalScore", ["negTotalScore"])
-        .index("by_negDailyBestScore", ["negDailyBestScore"]),
+    }).index("by_user", ["userId"]),
     promocodeTypes: defineTable({
         sort_order: v.number(),
         label: v.optional(v.string()),
