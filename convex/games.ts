@@ -1,9 +1,48 @@
+import { TableAggregate } from "@convex-dev/aggregate";
 import { v } from "convex/values";
 import { mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
+import { DataModel, Id } from "./_generated/dataModel";
+import { components, internal } from "./_generated/api";
 import { awardEligiblePromocodes } from "./promocodes";
+import { Triggers } from "convex-helpers/server/triggers";
+import { Migrations } from "@convex-dev/migrations";
+import {
+    customCtx,
+    customMutation,
+  } from "convex-helpers/server/customFunctions";
+import { aggregateUserTotalsByDailyBestScore, aggregateUserTotalsByTotalScore, addFinishedScoreToTotals, getUserTotalsByUserId } from "./userTotals";
 
-export const startNewGame = mutation({
+
+export const aggregateGamesByUser = new TableAggregate<{
+    Key: [Id<"users">];
+    DataModel: DataModel;
+    TableName: "games";
+  }>(components.aggregateGamesByUser, {
+    sortKey: (doc) => [doc.userId],
+    sumValue: (doc) => doc.score,
+  });
+
+const triggers = new Triggers<DataModel>();
+triggers.register("userTotals", aggregateUserTotalsByDailyBestScore.idempotentTrigger());
+triggers.register("userTotals", aggregateUserTotalsByTotalScore.idempotentTrigger());
+triggers.register("games", aggregateGamesByUser.idempotentTrigger());
+const mutationWithTriggers = customMutation(
+    mutation,
+    customCtx(triggers.wrapDB)
+);
+
+export const migrations = new Migrations<DataModel>(components.migrations);
+export const backfillGamesMigration = migrations.define({
+  table: "games",
+  migrateOne: async (ctx, doc) => {
+    await aggregateGamesByUser.insertIfDoesNotExist(ctx, doc);
+  },
+});
+export const runGamesBackfill = migrations.runner(
+  internal.games.backfillGamesMigration
+);
+
+export const startNewGame = mutationWithTriggers({
     args: {
         userId: v.id("users"),
     },
@@ -21,7 +60,7 @@ export const getInProgressGame = query({
     },
 });
 
-export const setGameScore = mutation({
+export const setGameScore = mutationWithTriggers({
     args: {
         userId: v.id("users"),
         score: v.number(),
@@ -62,7 +101,7 @@ export const setGameScore = mutation({
     },
 });
 
-export const finishGame = mutation({
+export const finishGame = mutationWithTriggers({
     args: {
         userId: v.id("users"),
     },
@@ -128,14 +167,9 @@ export const getTotalScore = query({
     args: {
         userId: v.id("users"),
     },
-    handler: async (ctx, args) => {
-        const finishedGames = await ctx.db
-            .query("games")
-            .withIndex("by_user", (q) => q.eq("userId", args.userId))
-            .collect();
-
-        return finishedGames.reduce((sum, g) => sum + g.score, 0);
-    },
+    handler: async (ctx, args) => await aggregateGamesByUser.sum(ctx, {
+        bounds: { prefix: [args.userId] },
+    }) ?? 0,
 });
 
 export async function createNewGame(
@@ -164,66 +198,3 @@ export async function getInProgressGameByUserId(
     return game ?? null;
 }
 
-async function getUserTotalsByUserId(
-    ctx: QueryCtx | MutationCtx,
-    userId: Id<"users">
-) {
-    return await ctx.db
-        .query("userTotals")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
-        .first();
-}
-
-function getTodayDateKey(): string {
-    const now = new Date();
-    return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`;
-}
-
-async function addFinishedScoreToTotals(
-    ctx: MutationCtx,
-    userId: Id<"users">,
-    finishedScore: number
-) {
-    const existing = await getUserTotalsByUserId(
-        ctx as unknown as QueryCtx,
-        userId
-    );
-    const todayKey = getTodayDateKey();
-
-    if (!existing) {
-        await ctx.db.insert("userTotals", {
-            userId,
-            totalScore: finishedScore,
-            recordScore: finishedScore,
-            negTotalScore: -finishedScore,
-            dailyBestScore: finishedScore,
-            negDailyBestScore: -finishedScore,
-            dailyResetDate: todayKey,
-            updatedAt: Date.now(),
-        });
-        return;
-    }
-
-    const nextRecord =
-        existing.recordScore < finishedScore
-            ? finishedScore
-            : existing.recordScore;
-
-    // Reset daily best if date changed
-    let dailyBest = existing.dailyBestScore ?? 0;
-    if (existing.dailyResetDate !== todayKey) {
-        dailyBest = finishedScore;
-    } else {
-        dailyBest = Math.max(dailyBest, finishedScore);
-    }
-
-    await ctx.db.patch(existing._id, {
-        totalScore: existing.totalScore + finishedScore,
-        recordScore: nextRecord,
-        negTotalScore: -(existing.totalScore + finishedScore),
-        dailyBestScore: dailyBest,
-        negDailyBestScore: -dailyBest,
-        dailyResetDate: todayKey,
-        updatedAt: Date.now(),
-    });
-}

@@ -23,9 +23,9 @@ export default defineSchema({
         userId: v.id("users"),
         totalScore: v.number(),
         recordScore: v.number(),
-        negTotalScore: v.number(),
+        negTotalScore: v.optional(v.number()),
         dailyBestScore: v.number(),
-        negDailyBestScore: v.number(),
+        negDailyBestScore: v.optional(v.number()),
         dailyResetDate: v.string(), // YYYY-MM-DD format for daily reset tracking
         updatedAt: v.number(),
     })
