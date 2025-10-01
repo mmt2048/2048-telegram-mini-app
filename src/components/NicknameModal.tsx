@@ -6,16 +6,14 @@ import { hapticFeedback } from "@telegram-apps/sdk-react";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useLaunchParams } from "@telegram-apps/sdk-react";
+import { useUser } from "@/contexts/UserContext";
 
 export const NicknameModal: React.FC<{
     isOpen: boolean;
     setIsOpen: (open: boolean) => void;
 }> = ({ isOpen, setIsOpen }) => {
-    const lp = useLaunchParams(true);
-    const me = useQuery(api.users.getUser, {
-        telegramUser: lp.tgWebAppData?.user,
-    });
+    const { userId } = useUser();
+    const me = useQuery(api.users.getUser, userId ? { userId } : "skip");
     const setUserNickname = useMutation(api.users.setUserNickname);
 
     const [inputNickname, setInputNickname] = useState("");
@@ -36,9 +34,10 @@ export const NicknameModal: React.FC<{
     };
 
     const changeNickname = async (nickname: string) => {
+        if (!userId) return;
         try {
             await setUserNickname({
-                telegramUser: lp.tgWebAppData?.user,
+                userId,
                 nickname: nickname,
             });
             hapticFeedback.notificationOccurred.ifAvailable("success");

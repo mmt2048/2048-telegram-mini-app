@@ -5,6 +5,7 @@ import { Cell, Divider, Section, Skeleton } from "@telegram-apps/telegram-ui";
 import React from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { useUser } from "@/contexts/UserContext";
 
 export const RatingSection: React.FC<{
     title: string;
@@ -14,12 +15,18 @@ export const RatingSection: React.FC<{
     scope: "global" | "friends";
 }> = ({ title, footer, noDataText, type, scope }) => {
     const lp = useLaunchParams(true);
-    const rating = useQuery(api.rating.getRating, {
-        telegramUser: lp.tgWebAppData?.user,
-        type: type,
-        scope: scope,
-        limit: ratingLength,
-    });
+    const { userId } = useUser();
+    const rating = useQuery(
+        api.rating.getRating,
+        userId
+            ? {
+                  userId,
+                  type: type,
+                  scope: scope,
+                  limit: ratingLength,
+              }
+            : "skip"
+    );
 
     const currentUserId = lp.tgWebAppData?.user?.id;
 

@@ -5,15 +5,17 @@ import CheckIcon from "@mui/icons-material/Check";
 import { Stack } from "@mui/material";
 import { useState } from "react";
 import { Skeleton } from "@telegram-apps/telegram-ui";
-import { hapticFeedback, useLaunchParams } from "@telegram-apps/sdk-react";
+import { hapticFeedback } from "@telegram-apps/sdk-react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { useUser } from "@/contexts/UserContext";
 
 export const FriendsSection = () => {
-    const lp = useLaunchParams(true);
-    const friends = useQuery(api.friendships.getFriends, {
-        telegramUser: lp.tgWebAppData?.user,
-    });
+    const { userId } = useUser();
+    const friends = useQuery(
+        api.friendships.getFriends,
+        userId ? { userId } : "skip"
+    );
     const removeFriendMutation = useMutation(api.friendships.removeFriend);
 
     const [editMode, setEditMode] = useState(false);
@@ -103,11 +105,12 @@ export const FriendsSection = () => {
                                 <CloseIcon
                                     fontSize="small"
                                     onClick={() => {
+                                        if (!userId) return;
                                         hapticFeedback.impactOccurred.ifAvailable(
                                             "light"
                                         );
                                         removeFriendMutation({
-                                            telegramUser: lp.tgWebAppData?.user,
+                                            userId,
                                             friendId: friend._id,
                                         });
                                     }}

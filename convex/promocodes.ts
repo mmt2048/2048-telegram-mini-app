@@ -1,33 +1,28 @@
 import { v } from "convex/values";
 import { MutationCtx, mutation, query } from "./_generated/server";
-import { getUserByTelegramUser } from "./users";
 import { Id } from "./_generated/dataModel";
 
 export const getUserPromocodes = query({
     args: {
-        telegramUser: v.any(),
+        userId: v.id("users"),
     },
     handler: async (ctx, args) => {
-        const user = await getUserByTelegramUser(ctx, args.telegramUser);
-        if (!user) return [];
         return await ctx.db
             .query("promocodes")
-            .withIndex("by_user", (q) => q.eq("userId", user._id))
+            .withIndex("by_user", (q) => q.eq("userId", args.userId))
             .collect();
     },
 });
 
 export const createPromocode = mutation({
     args: {
-        telegramUser: v.any(),
+        userId: v.id("users"),
         promocodeTypeId: v.id("promocodeTypes"),
     },
     handler: async (ctx, args) => {
-        const user = await getUserByTelegramUser(ctx, args.telegramUser);
-        if (!user) return null;
         const code = Math.random().toString(36).substring(2, 14).toUpperCase();
         return await ctx.db.insert("promocodes", {
-            userId: user._id,
+            userId: args.userId,
             promocodeTypeId: args.promocodeTypeId,
             code: code,
             opened: false,
@@ -37,15 +32,12 @@ export const createPromocode = mutation({
 
 export const markOpened = mutation({
     args: {
-        telegramUser: v.any(),
+        userId: v.id("users"),
         promocodeId: v.id("promocodes"),
     },
     handler: async (ctx, args) => {
-        const user = await getUserByTelegramUser(ctx, args.telegramUser);
-        if (!user) return null;
-
         const pc = await ctx.db.get(args.promocodeId);
-        if (!pc || pc.userId !== user._id) return null;
+        if (!pc || pc.userId !== args.userId) return null;
 
         if (pc.opened) return pc._id; // idempotent
         await ctx.db.patch(pc._id, { opened: true });

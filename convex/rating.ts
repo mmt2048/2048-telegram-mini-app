@@ -1,7 +1,6 @@
 import { v } from "convex/values";
 import { query, QueryCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
-import { getUserByTelegramUser } from "./users";
 
 type RatingType = "daily" | "total";
 
@@ -33,14 +32,12 @@ type User = {
 
 export const getRating = query({
     args: {
-        telegramUser: v.any(),
+        userId: v.id("users"),
         type: v.union(v.literal("daily"), v.literal("total")),
         scope: v.union(v.literal("global"), v.literal("friends")),
         limit: v.number(),
     },
     handler: async (ctx, args) => {
-        const currentUser = await getUserByTelegramUser(ctx, args.telegramUser);
-
         let rows: RatingRow[];
 
         if (args.scope === "global") {
@@ -48,14 +45,10 @@ export const getRating = query({
                 ctx,
                 args.type,
                 args.limit,
-                currentUser?._id ?? null
+                args.userId
             );
         } else {
-            rows = await getFriendsRating(
-                ctx,
-                args.type,
-                currentUser?._id ?? null
-            );
+            rows = await getFriendsRating(ctx, args.type, args.userId);
         }
 
         // Sort by score descending and assign places (1-based)
@@ -65,13 +58,9 @@ export const getRating = query({
         // Take top N and include current user if outside top
         const top = rows.slice(0, Math.max(0, args.limit));
 
-        if (currentUser) {
-            const myIndex = rows.findIndex(
-                (r) => r._userConvexId === currentUser._id
-            );
-            if (myIndex >= args.limit && myIndex !== -1) {
-                top.push(rows[myIndex]);
-            }
+        const myIndex = rows.findIndex((r) => r._userConvexId === args.userId);
+        if (myIndex >= args.limit && myIndex !== -1) {
+            top.push(rows[myIndex]);
         }
 
         // Strip internal field before returning

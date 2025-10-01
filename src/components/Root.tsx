@@ -1,5 +1,6 @@
 import { App } from "@/components/App.tsx";
 import { ErrorBoundary } from "@/components/ErrorBoundary.tsx";
+import { UserProvider } from "@/contexts/UserContext";
 
 function ErrorBoundaryError({ error }: { error: unknown }) {
     return (
@@ -10,8 +11,8 @@ function ErrorBoundaryError({ error }: { error: unknown }) {
                     {error instanceof Error
                         ? error.message
                         : typeof error === "string"
-                        ? error
-                        : JSON.stringify(error)}
+                          ? error
+                          : JSON.stringify(error)}
                 </code>
             </blockquote>
         </div>
@@ -21,7 +22,9 @@ function ErrorBoundaryError({ error }: { error: unknown }) {
 export function Root() {
     return (
         <ErrorBoundary fallback={ErrorBoundaryError}>
-            <App />
+            <UserProvider>
+                <App />
+            </UserProvider>
         </ErrorBoundary>
     );
 }

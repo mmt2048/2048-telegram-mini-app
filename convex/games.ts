@@ -1,51 +1,38 @@
 import { v } from "convex/values";
 import { mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
-import { getOrCreateUserByTelegramUser, getUserByTelegramUser } from "./users";
 import { awardEligiblePromocodes } from "./promocodes";
 
 export const startNewGame = mutation({
     args: {
-        telegramUser: v.any(),
+        userId: v.id("users"),
     },
     handler: async (ctx, args) => {
-        const user = await getOrCreateUserByTelegramUser(
-            ctx,
-            args.telegramUser
-        );
-        if (!user) throw new Error("User not found");
-
-        return createNewGame(ctx, user._id);
+        return createNewGame(ctx, args.userId);
     },
 });
 
 export const getInProgressGame = query({
     args: {
-        telegramUser: v.any(),
+        userId: v.id("users"),
     },
     handler: async (ctx, args) => {
-        const user = await getUserByTelegramUser(ctx, args.telegramUser);
-        if (!user) throw new Error("User not found");
-
-        return await getInProgressGameByUserId(ctx, user._id);
+        return await getInProgressGameByUserId(ctx, args.userId);
     },
 });
 
 export const setGameScore = mutation({
     args: {
-        telegramUser: v.any(),
+        userId: v.id("users"),
         score: v.number(),
     },
     handler: async (ctx, args) => {
-        const user = await getOrCreateUserByTelegramUser(
+        const inProgressGame = await getInProgressGameByUserId(
             ctx,
-            args.telegramUser
+            args.userId
         );
-        if (!user) throw new Error("User not found");
 
-        const inProgressGame = await getInProgressGameByUserId(ctx, user._id);
-
-        if (!inProgressGame) return createNewGame(ctx, user._id, args.score);
+        if (!inProgressGame) return createNewGame(ctx, args.userId, args.score);
 
         // Monotonic guard: never decrease score due to out-of-order or spammy updates
         if (args.score <= inProgressGame.score) {
@@ -58,14 +45,14 @@ export const setGameScore = mutation({
         });
 
         try {
-            const totals = await getUserTotalsByUserId(ctx, user._id);
+            const totals = await getUserTotalsByUserId(ctx, args.userId);
             const recordCandidate = Math.max(
                 totals?.recordScore ?? 0,
                 args.score
             );
             const totalCandidate = (totals?.totalScore ?? 0) + args.score;
 
-            await awardEligiblePromocodes(ctx, user._id, {
+            await awardEligiblePromocodes(ctx, args.userId, {
                 recordScore: recordCandidate,
                 totalScore: totalCandidate,
             });
@@ -77,18 +64,15 @@ export const setGameScore = mutation({
 
 export const finishGame = mutation({
     args: {
-        telegramUser: v.any(),
+        userId: v.id("users"),
     },
     handler: async (ctx, args) => {
-        const user = await getOrCreateUserByTelegramUser(
+        const inProgressGame = await getInProgressGameByUserId(
             ctx,
-            args.telegramUser
+            args.userId
         );
-        if (!user) throw new Error("User not found");
 
-        const inProgressGame = await getInProgressGameByUserId(ctx, user._id);
-
-        if (!inProgressGame) return createNewGame(ctx, user._id);
+        if (!inProgressGame) return createNewGame(ctx, args.userId);
 
         await ctx.db.patch(inProgressGame._id, {
             status: "finished",
@@ -97,15 +81,19 @@ export const finishGame = mutation({
 
         // Incrementally update totals and award any missed promocodes
         try {
-            await addFinishedScoreToTotals(ctx, user._id, inProgressGame.score);
+            await addFinishedScoreToTotals(
+                ctx,
+                args.userId,
+                inProgressGame.score
+            );
             const totals = await getUserTotalsByUserId(
                 ctx as unknown as QueryCtx,
-                user._id
+                args.userId
             );
             if (totals) {
                 await awardEligiblePromocodes(
                     ctx as unknown as MutationCtx,
-                    user._id,
+                    args.userId,
                     {
                         recordScore: totals.recordScore,
                         totalScore: totals.totalScore,
@@ -120,15 +108,12 @@ export const finishGame = mutation({
 
 export const getRecordScore = query({
     args: {
-        telegramUser: v.any(),
+        userId: v.id("users"),
     },
     handler: async (ctx, args) => {
-        const user = await getUserByTelegramUser(ctx, args.telegramUser);
-        if (!user) throw new Error("User not found");
-
         const finishedGames = await ctx.db
             .query("games")
-            .withIndex("by_user", (q) => q.eq("userId", user._id))
+            .withIndex("by_user", (q) => q.eq("userId", args.userId))
             .collect();
 
         if (finishedGames.length === 0) return 0;
@@ -141,15 +126,12 @@ export const getRecordScore = query({
 
 export const getTotalScore = query({
     args: {
-        telegramUser: v.any(),
+        userId: v.id("users"),
     },
     handler: async (ctx, args) => {
-        const user = await getUserByTelegramUser(ctx, args.telegramUser);
-        if (!user) throw new Error("User not found");
-
         const finishedGames = await ctx.db
             .query("games")
-            .withIndex("by_user", (q) => q.eq("userId", user._id))
+            .withIndex("by_user", (q) => q.eq("userId", args.userId))
             .collect();
 
         return finishedGames.reduce((sum, g) => sum + g.score, 0);

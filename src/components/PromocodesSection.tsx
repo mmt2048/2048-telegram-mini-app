@@ -9,11 +9,11 @@ import {
 import { TimelineItem } from "@telegram-apps/telegram-ui/dist/components/Blocks/Timeline/components/TimelineItem/TimelineItem";
 import { formatNumberWithSpaces } from "@/helper/formatter";
 import { openLink } from "@telegram-apps/sdk-react";
-import { useLaunchParams } from "@telegram-apps/sdk-react";
 import PromocodeButton from "@/components/PromocodeButton";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
+import { useUser } from "@/contexts/UserContext";
 
 type PromocodesSection = {
     header: string;
@@ -44,16 +44,19 @@ export const PromocodesSection = ({
     type,
 }: PromocodesSection) => {
     type PromocodeType = Doc<"promocodeTypes">;
-    const lp = useLaunchParams(true);
-    const recordScore = useQuery(api.games.getRecordScore, {
-        telegramUser: lp.tgWebAppData?.user,
-    });
-    const totalScore = useQuery(api.games.getTotalScore, {
-        telegramUser: lp.tgWebAppData?.user,
-    });
-    const promocodes = useQuery(api.promocodes.getUserPromocodes, {
-        telegramUser: lp.tgWebAppData?.user,
-    });
+    const { userId } = useUser();
+    const recordScore = useQuery(
+        api.games.getRecordScore,
+        userId ? { userId } : "skip"
+    );
+    const totalScore = useQuery(
+        api.games.getTotalScore,
+        userId ? { userId } : "skip"
+    );
+    const promocodes = useQuery(
+        api.promocodes.getUserPromocodes,
+        userId ? { userId } : "skip"
+    );
     const promocodeTypes = useQuery(api.promocodeTypes.getPromocodeTypes, {
         type,
     });

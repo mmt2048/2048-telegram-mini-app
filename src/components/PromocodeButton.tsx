@@ -1,11 +1,12 @@
 import { Button } from "@telegram-apps/telegram-ui";
-import { useLaunchParams, hapticFeedback } from "@telegram-apps/sdk-react";
+import { hapticFeedback } from "@telegram-apps/sdk-react";
 import { useMemo, useRef, useState } from "react";
 import { useReward } from "react-rewards";
 import { CopyButton } from "@/components/CopyButton";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useUser } from "@/contexts/UserContext";
 
 export const PromocodeButton: React.FC<{
     promocodeId: Id<"promocodes">;
@@ -22,7 +23,7 @@ export const PromocodeButton: React.FC<{
     stretched = true,
     onOpened,
 }) => {
-    const lp = useLaunchParams(true);
+    const { userId } = useUser();
     const markOpenedMutation = useMutation(api.promocodes.markOpened);
 
     const [isLoading, setIsLoading] = useState(false);
@@ -45,13 +46,13 @@ export const PromocodeButton: React.FC<{
     const copyWrapRef = useRef<HTMLSpanElement | null>(null);
 
     const onGet = async () => {
-        if (isOpenedLocal) {
+        if (isOpenedLocal || !userId) {
             return;
         }
         setIsLoading(true);
         try {
             const patchedId = await markOpenedMutation({
-                telegramUser: lp.tgWebAppData?.user,
+                userId,
                 promocodeId,
             });
             if (patchedId) {

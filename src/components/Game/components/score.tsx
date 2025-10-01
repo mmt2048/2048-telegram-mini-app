@@ -1,14 +1,15 @@
 import { Section, Title, Cell, Skeleton } from "@telegram-apps/telegram-ui";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useLaunchParams } from "@telegram-apps/sdk-react";
+import { useUser } from "@/contexts/UserContext";
 
 export default function Score() {
-    const lp = useLaunchParams(true);
+    const { userId } = useUser();
 
-    const game = useQuery(api.games.getInProgressGame, {
-        telegramUser: lp.tgWebAppData?.user,
-    });
+    const game = useQuery(
+        api.games.getInProgressGame,
+        userId ? { userId } : "skip"
+    );
     const score = game?.score;
 
     return (
