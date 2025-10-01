@@ -57,12 +57,8 @@ export const setGameScore = mutation({
             updatedAt: Date.now(),
         });
 
-        // Auto-award promocodes using precomputed totals + in-progress score
         try {
-            const totals = await getUserTotalsByUserId(
-                ctx as unknown as QueryCtx,
-                user._id
-            );
+            const totals = await getUserTotalsByUserId(ctx, user._id);
             const recordCandidate = Math.max(
                 totals?.recordScore ?? 0,
                 args.score

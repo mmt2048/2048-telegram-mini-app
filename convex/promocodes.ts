@@ -85,19 +85,46 @@ export async function awardEligiblePromocodes(
 ) {
     const { recordScore, totalScore } = options;
 
+    // Early exit if no scores provided
+    if (recordScore === undefined && totalScore === undefined) {
+        return;
+    }
+
     const types = await ctx.db.query("promocodeTypes").collect();
+
+    // Filter types that could be eligible based on scores (pre-filter before database queries)
+    const eligibleTypes = types.filter((t) => {
+        if (t.type === "record" && typeof recordScore === "number") {
+            return recordScore >= (t.score ?? 0);
+        }
+        if (t.type === "total" && typeof totalScore === "number") {
+            return totalScore >= (t.score ?? 0);
+        }
+        return false;
+    });
+
+    // Early exit if no eligible types
+    if (eligibleTypes.length === 0) {
+        return;
+    }
+
+    // Batch check existing promocodes for all eligible types (reduces N queries to 1)
+    const existingPromocodes = await ctx.db
+        .query("promocodes")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .collect();
+
+    const existingTypeIds = new Set(
+        existingPromocodes.map((pc) => pc.promocodeTypeId)
+    );
 
     // Helper to ensure a promocode exists for a type by consuming from available pool
     const ensurePromocodeForType = async (
         promocodeTypeId: Id<"promocodeTypes">
     ) => {
-        const existing = await ctx.db
-            .query("promocodes")
-            .withIndex("by_user_and_type", (q) =>
-                q.eq("userId", userId).eq("promocodeTypeId", promocodeTypeId)
-            )
-            .first();
-        if (existing) return existing._id;
+        if (existingTypeIds.has(promocodeTypeId)) {
+            return null; // Already have this type, skip
+        }
 
         // Pull one available promocode for this type
         const available = await ctx.db
@@ -120,16 +147,7 @@ export async function awardEligiblePromocodes(
         return newId;
     };
 
-    for (const t of types) {
-        if (t.type === "record" && typeof recordScore === "number") {
-            if (recordScore >= (t.score ?? 0)) {
-                await ensurePromocodeForType(t._id);
-            }
-        }
-        if (t.type === "total" && typeof totalScore === "number") {
-            if (totalScore >= (t.score ?? 0)) {
-                await ensurePromocodeForType(t._id);
-            }
-        }
+    for (const t of eligibleTypes) {
+        await ensurePromocodeForType(t._id);
     }
 }
