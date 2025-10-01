@@ -33,16 +33,6 @@ export const backfillUserTotalsMigration = migrations.define({
 export const runUserTotalsBackfill = migrations.runner(
     internal.userTotals.backfillUserTotalsMigration
 );
-export const removeNegValuesMigration = migrations.define({
-    table: "userTotals",
-    migrateOne: () => ({
-        negTotalScore: undefined,
-        negDailyBestScore: undefined,
-    }),
-});
-export const runRemoveNegValuesMigration = migrations.runner(
-    internal.userTotals.removeNegValuesMigration
-);
 
 export async function getUserTotalsByUserId(
     ctx: QueryCtx | MutationCtx,
@@ -82,9 +72,7 @@ export async function addFinishedScoreToTotals(
             userId,
             totalScore: finishedScore,
             recordScore: finishedScore,
-            negTotalScore: -finishedScore,
             dailyBestScore: finishedScore,
-            negDailyBestScore: -finishedScore,
             dailyResetDate: todayKey,
             updatedAt: Date.now(),
         });
@@ -107,9 +95,7 @@ export async function addFinishedScoreToTotals(
     await ctx.db.patch(existing._id, {
         totalScore: existing.totalScore + finishedScore,
         recordScore: nextRecord,
-        negTotalScore: -(existing.totalScore + finishedScore),
         dailyBestScore: dailyBest,
-        negDailyBestScore: -dailyBest,
         dailyResetDate: todayKey,
         updatedAt: Date.now(),
     });
