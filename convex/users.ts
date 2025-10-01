@@ -3,10 +3,10 @@ import { mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
 
 export const getUser = query({
     args: {
-        telegramUser: v.any(),
+        userId: v.id("users"),
     },
     handler: async (ctx, args) => {
-        return await getUserByTelegramUser(ctx, args.telegramUser);
+        return await ctx.db.get(args.userId);
     },
 });
 
@@ -38,17 +38,11 @@ export async function getUserByTelegramId(ctx: QueryCtx, telegramId: number) {
 
 export const setUserNickname = mutation({
     args: {
-        telegramUser: v.any(),
+        userId: v.id("users"),
         nickname: v.string(),
     },
     handler: async (ctx, args) => {
-        const user = await getOrCreateUserByTelegramUser(
-            ctx,
-            args.telegramUser
-        );
-        if (!user) return null;
-
-        await ctx.db.patch(user._id, { nickname: args.nickname });
+        await ctx.db.patch(args.userId, { nickname: args.nickname });
     },
 });
 

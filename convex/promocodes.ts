@@ -1,33 +1,28 @@
 import { v } from "convex/values";
 import { MutationCtx, mutation, query } from "./_generated/server";
-import { getUserByTelegramUser } from "./users";
 import { Id } from "./_generated/dataModel";
 
 export const getUserPromocodes = query({
     args: {
-        telegramUser: v.any(),
+        userId: v.id("users"),
     },
     handler: async (ctx, args) => {
-        const user = await getUserByTelegramUser(ctx, args.telegramUser);
-        if (!user) return [];
         return await ctx.db
             .query("promocodes")
-            .withIndex("by_user", (q) => q.eq("userId", user._id))
+            .withIndex("by_user", (q) => q.eq("userId", args.userId))
             .collect();
     },
 });
 
 export const createPromocode = mutation({
     args: {
-        telegramUser: v.any(),
+        userId: v.id("users"),
         promocodeTypeId: v.id("promocodeTypes"),
     },
     handler: async (ctx, args) => {
-        const user = await getUserByTelegramUser(ctx, args.telegramUser);
-        if (!user) return null;
         const code = Math.random().toString(36).substring(2, 14).toUpperCase();
         return await ctx.db.insert("promocodes", {
-            userId: user._id,
+            userId: args.userId,
             promocodeTypeId: args.promocodeTypeId,
             code: code,
             opened: false,
@@ -37,15 +32,12 @@ export const createPromocode = mutation({
 
 export const markOpened = mutation({
     args: {
-        telegramUser: v.any(),
+        userId: v.id("users"),
         promocodeId: v.id("promocodes"),
     },
     handler: async (ctx, args) => {
-        const user = await getUserByTelegramUser(ctx, args.telegramUser);
-        if (!user) return null;
-
         const pc = await ctx.db.get(args.promocodeId);
-        if (!pc || pc.userId !== user._id) return null;
+        if (!pc || pc.userId !== args.userId) return null;
 
         if (pc.opened) return pc._id; // idempotent
         await ctx.db.patch(pc._id, { opened: true });
@@ -85,19 +77,46 @@ export async function awardEligiblePromocodes(
 ) {
     const { recordScore, totalScore } = options;
 
+    // Early exit if no scores provided
+    if (recordScore === undefined && totalScore === undefined) {
+        return;
+    }
+
     const types = await ctx.db.query("promocodeTypes").collect();
+
+    // Filter types that could be eligible based on scores (pre-filter before database queries)
+    const eligibleTypes = types.filter((t) => {
+        if (t.type === "record" && typeof recordScore === "number") {
+            return recordScore >= (t.score ?? 0);
+        }
+        if (t.type === "total" && typeof totalScore === "number") {
+            return totalScore >= (t.score ?? 0);
+        }
+        return false;
+    });
+
+    // Early exit if no eligible types
+    if (eligibleTypes.length === 0) {
+        return;
+    }
+
+    // Batch check existing promocodes for all eligible types (reduces N queries to 1)
+    const existingPromocodes = await ctx.db
+        .query("promocodes")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .collect();
+
+    const existingTypeIds = new Set(
+        existingPromocodes.map((pc) => pc.promocodeTypeId)
+    );
 
     // Helper to ensure a promocode exists for a type by consuming from available pool
     const ensurePromocodeForType = async (
         promocodeTypeId: Id<"promocodeTypes">
     ) => {
-        const existing = await ctx.db
-            .query("promocodes")
-            .withIndex("by_user_and_type", (q) =>
-                q.eq("userId", userId).eq("promocodeTypeId", promocodeTypeId)
-            )
-            .first();
-        if (existing) return existing._id;
+        if (existingTypeIds.has(promocodeTypeId)) {
+            return null; // Already have this type, skip
+        }
 
         // Pull one available promocode for this type
         const available = await ctx.db
@@ -120,16 +139,7 @@ export async function awardEligiblePromocodes(
         return newId;
     };
 
-    for (const t of types) {
-        if (t.type === "record" && typeof recordScore === "number") {
-            if (recordScore >= (t.score ?? 0)) {
-                await ensurePromocodeForType(t._id);
-            }
-        }
-        if (t.type === "total" && typeof totalScore === "number") {
-            if (totalScore >= (t.score ?? 0)) {
-                await ensurePromocodeForType(t._id);
-            }
-        }
+    for (const t of eligibleTypes) {
+        await ensurePromocodeForType(t._id);
     }
 }

@@ -3,9 +3,9 @@ import { Cell, Section, Skeleton } from "@telegram-apps/telegram-ui";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import ArchiveIcon from "@mui/icons-material/Archive";
 import { formatNumberWithSpaces } from "@/helper/formatter";
-import { useLaunchParams } from "@telegram-apps/sdk-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { useUser } from "@/contexts/UserContext";
 
 interface StatItem {
     subtitle: string;
@@ -14,13 +14,15 @@ interface StatItem {
 }
 
 export const StatsSection = () => {
-    const lp = useLaunchParams(true);
-    const recordScore = useQuery(api.games.getRecordScore, {
-        telegramUser: lp.tgWebAppData?.user,
-    });
-    const totalScore = useQuery(api.games.getTotalScore, {
-        telegramUser: lp.tgWebAppData?.user,
-    });
+    const { userId } = useUser();
+    const recordScore = useQuery(
+        api.games.getRecordScore,
+        userId ? { userId } : "skip"
+    );
+    const totalScore = useQuery(
+        api.games.getTotalScore,
+        userId ? { userId } : "skip"
+    );
 
     const showStats = recordScore !== undefined && totalScore !== undefined;
 

@@ -12,27 +12,21 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { useUser } from "@/contexts/UserContext";
 
 export function App() {
     const lp = useLaunchParams(true);
     const isDark = useSignal(miniApp.isDark);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const [newFriend, setNewFriend] = useState<boolean>(false);
-    const [isUserEnsured, setIsUserEnsured] = useState<boolean>(false);
+    const { userId, isLoading: isUserLoading } = useUser();
     const addFriend = useMutation(api.friendships.addFriend);
-    const ensureUser = useMutation(api.users.ensureUser);
 
     useEffect(() => {
         const init = async () => {
             await new Promise((resolve) => setTimeout(resolve, 100));
             if (viewport.expand.isAvailable()) {
                 viewport.expand();
-            }
-            try {
-                await ensureUser({ telegramUser: lp.tgWebAppData?.user });
-                setIsUserEnsured(true);
-            } catch (e) {
-                console.log("Failed to ensure user:", e);
             }
         };
         init();
@@ -41,13 +35,21 @@ export function App() {
         const container = scrollContainerRef.current;
         container?.addEventListener("scroll", handleScroll);
 
-        // Check start param
+        return () => {
+            container?.removeEventListener("scroll", handleScroll);
+        };
+    }, []);
+
+    // Handle friend invitation once userId is available
+    useEffect(() => {
+        if (!userId) return;
+
         const startParam = lp.tgWebAppData?.startParam;
         if (startParam && startParam.startsWith("friend_")) {
-            const userId = startParam.split("_")[1];
+            const friendUserId = startParam.split("_")[1];
             addFriend({
-                telegramUser: lp.tgWebAppData?.user,
-                friendId: userId as Id<"users">,
+                userId,
+                friendId: friendUserId as Id<"users">,
             })
                 .then(() => {
                     setNewFriend(true);
@@ -56,10 +58,7 @@ export function App() {
                     console.log(`Failed to add friend: `, e);
                 });
         }
-        return () => {
-            container?.removeEventListener("scroll", handleScroll);
-        };
-    }, []);
+    }, [userId, lp.tgWebAppData?.startParam, addFriend]);
 
     return (
         <AppRoot
@@ -84,7 +83,7 @@ export function App() {
                     overscrollBehavior: "none",
                 }}
             >
-                {isUserEnsured && (
+                {!isUserLoading && userId && (
                     <HashRouter>
                         <GameProvider>
                             <Routes>

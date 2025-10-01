@@ -4,12 +4,12 @@ import {
     hapticFeedback,
     retrieveLaunchParams,
     shareURL,
-    useLaunchParams,
 } from "@telegram-apps/sdk-react";
 import { Cell } from "@telegram-apps/telegram-ui";
 import { useQuery } from "convex/react";
 import { useState } from "react";
 import { loadRuntimeConfig } from "@/helper/runtimeConfig";
+import { useUser } from "@/contexts/UserContext";
 
 type InviteUrlCellProps = {
     copiedDuration?: number;
@@ -18,11 +18,9 @@ type InviteUrlCellProps = {
 export const InviteUrlCell = ({
     copiedDuration = 1100,
 }: InviteUrlCellProps) => {
-    const lp = useLaunchParams(true);
+    const { userId } = useUser();
     const [showCopied, setShowCopied] = useState(false);
-    const me = useQuery(api.users.getUser, {
-        telegramUser: lp.tgWebAppData?.user,
-    });
+    const me = useQuery(api.users.getUser, userId ? { userId } : "skip");
 
     const initData = retrieveLaunchParams();
     console.log(`initData:`, initData);

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLaunchParams, hapticFeedback } from "@telegram-apps/sdk-react";
+import { hapticFeedback } from "@telegram-apps/sdk-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Modal, Text } from "@telegram-apps/telegram-ui";
@@ -7,13 +7,15 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { ModalHeader } from "@telegram-apps/telegram-ui/dist/components/Overlays/Modal/components/ModalHeader/ModalHeader";
 import PromocodeButton from "@/components/PromocodeButton";
 import { Stack } from "@mui/material";
+import { useUser } from "@/contexts/UserContext";
 
 export const PromocodeAwardModal: React.FC = () => {
-    const lp = useLaunchParams(true);
+    const { userId } = useUser();
 
-    const promocodes = useQuery(api.promocodes.getUserPromocodes, {
-        telegramUser: lp.tgWebAppData?.user,
-    });
+    const promocodes = useQuery(
+        api.promocodes.getUserPromocodes,
+        userId ? { userId } : "skip"
+    );
     const promocodeTypes = useQuery(api.promocodeTypes.getPromocodeTypes, {});
 
     const seenIdsRef = useRef<Set<string>>(new Set());

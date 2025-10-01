@@ -16,9 +16,10 @@ import { Tile } from "@/components/Game/models/tile";
 import gameReducer, {
     initialState,
 } from "@/components/Game/reducers/game-reducer";
-import { hapticFeedback, useLaunchParams } from "@telegram-apps/sdk-react";
+import { hapticFeedback } from "@telegram-apps/sdk-react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { useUser } from "@/contexts/UserContext";
 
 type MoveDirection = "move_up" | "move_down" | "move_left" | "move_right";
 
@@ -34,7 +35,7 @@ export default function GameProvider({ children }: PropsWithChildren) {
     const startNewGameMutation = useMutation(api.games.startNewGame);
     const setGameScoreMutation = useMutation(api.games.setGameScore);
     const finishGameMutation = useMutation(api.games.finishGame);
-    const lp = useLaunchParams(true);
+    const { userId } = useUser();
 
     // Debounced, latest-only score synchronization with single in-flight request
     const inFlightRef = useRef(false);
@@ -53,10 +54,12 @@ export default function GameProvider({ children }: PropsWithChildren) {
             inFlightRef.current = true;
             const p = (async () => {
                 try {
-                    await setGameScoreMutation({
-                        score: score,
-                        telegramUser: lp.tgWebAppData?.user,
-                    });
+                    if (userId) {
+                        await setGameScoreMutation({
+                            score: score,
+                            userId,
+                        });
+                    }
                 } catch (error) {
                     console.error("Error pushing score:", error);
                 } finally {
@@ -74,7 +77,7 @@ export default function GameProvider({ children }: PropsWithChildren) {
                 await sendScore(next);
             }
         },
-        [setGameScoreMutation, lp.tgWebAppData?.user]
+        [setGameScoreMutation, userId]
     );
 
     const pushScore = useCallback(
@@ -124,14 +127,16 @@ export default function GameProvider({ children }: PropsWithChildren) {
         async (finalScore: number) => {
             try {
                 await flushScore(finalScore);
-                await finishGameMutation({
-                    telegramUser: lp.tgWebAppData?.user,
-                });
+                if (userId) {
+                    await finishGameMutation({
+                        userId,
+                    });
+                }
             } catch (error) {
                 console.error("Error finishing game:", error);
             }
         },
-        [finishGameMutation, flushScore]
+        [finishGameMutation, flushScore, userId]
     );
 
     const loadSavedState = () => {
@@ -211,9 +216,11 @@ export default function GameProvider({ children }: PropsWithChildren) {
 
         initializationPromise.current = (async () => {
             try {
-                await startNewGameMutation({
-                    telegramUser: lp.tgWebAppData?.user,
-                });
+                if (userId) {
+                    await startNewGameMutation({
+                        userId,
+                    });
+                }
                 dispatch({ type: "reset_game" });
                 dispatch({ type: "update_status", status: "ongoing" });
             } catch (error) {
