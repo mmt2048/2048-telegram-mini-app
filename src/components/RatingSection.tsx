@@ -13,7 +13,7 @@ export const RatingSection: React.FC<{
     noDataText: string;
     type: "daily" | "total";
     scope: "global" | "friends";
-}> = ({ title, footer, noDataText, type, scope }) => {
+}> = ({ title, footer, noDataText, type }) => {
     const lp = useLaunchParams(true);
     const { userId } = useUser();
     const rating = useQuery(
@@ -22,7 +22,7 @@ export const RatingSection: React.FC<{
             ? {
                   userId,
                   type: type,
-                  scope: scope,
+                  //   scope: scope,
                   limit: ratingLength,
               }
             : "skip"
@@ -46,10 +46,10 @@ export const RatingSection: React.FC<{
                                 rating.place === 1
                                     ? "🥇"
                                     : rating.place === 2
-                                      ? "🥈"
-                                      : rating.place === 3
-                                        ? "🥉"
-                                        : rating.place;
+                                    ? "🥈"
+                                    : rating.place === 3
+                                    ? "🥉"
+                                    : rating.place;
 
                             return (
                                 <React.Fragment key={rating.user_id}>
@@ -65,7 +65,9 @@ export const RatingSection: React.FC<{
                                                 {medalEmoji}
                                             </span>
                                         }
-                                        subtitle={`${formatNumberWithSpaces(rating.score)} очков`}
+                                        subtitle={`${formatNumberWithSpaces(
+                                            rating.score
+                                        )} очков`}
                                         interactiveAnimation="opacity"
                                         style={{ cursor: "default" }}
                                     >

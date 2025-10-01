@@ -19,7 +19,7 @@ export default function Splash({ heading = "You lost!" }) {
             <List>
                 <LargeTitle weight="1">{heading}</LargeTitle>
                 <Button loading={isLoading} onClick={handleStartGame}>
-                    Сыграть ещё раз
+                    Продолжить
                 </Button>
             </List>
         </div>
