@@ -9,37 +9,26 @@ import { Migrations } from "@convex-dev/migrations";
 import {
     customCtx,
     customMutation,
-  } from "convex-helpers/server/customFunctions";
-import { aggregateUserTotalsByDailyBestScore, aggregateUserTotalsByTotalScore, addFinishedScoreToTotals, getUserTotalsByUserId } from "./userTotals";
-
-
-export const aggregateGamesByUser = new TableAggregate<{
-    Key: [Id<"users">];
-    DataModel: DataModel;
-    TableName: "games";
-  }>(components.aggregateGamesByUser, {
-    sortKey: (doc) => [doc.userId],
-    sumValue: (doc) => doc.score,
-  });
+} from "convex-helpers/server/customFunctions";
+import {
+    aggregateUserTotalsByDailyBestScore,
+    aggregateUserTotalsByTotalScore,
+    addFinishedScoreToTotals,
+    getUserTotalsByUserId,
+} from "./userTotals";
 
 const triggers = new Triggers<DataModel>();
-triggers.register("userTotals", aggregateUserTotalsByDailyBestScore.idempotentTrigger());
-triggers.register("userTotals", aggregateUserTotalsByTotalScore.idempotentTrigger());
-triggers.register("games", aggregateGamesByUser.idempotentTrigger());
+triggers.register(
+    "userTotals",
+    aggregateUserTotalsByDailyBestScore.idempotentTrigger()
+);
+triggers.register(
+    "userTotals",
+    aggregateUserTotalsByTotalScore.idempotentTrigger()
+);
 const mutationWithTriggers = customMutation(
     mutation,
     customCtx(triggers.wrapDB)
-);
-
-export const migrations = new Migrations<DataModel>(components.migrations);
-export const backfillGamesMigration = migrations.define({
-  table: "games",
-  migrateOne: async (ctx, doc) => {
-    await aggregateGamesByUser.insertIfDoesNotExist(ctx, doc);
-  },
-});
-export const runGamesBackfill = migrations.runner(
-  internal.games.backfillGamesMigration
 );
 
 export const startNewGame = mutationWithTriggers({
@@ -167,9 +156,14 @@ export const getTotalScore = query({
     args: {
         userId: v.id("users"),
     },
-    handler: async (ctx, args) => await aggregateGamesByUser.sum(ctx, {
-        bounds: { prefix: [args.userId] },
-    }) ?? 0,
+    handler: async (ctx, args) => {
+        const finishedGames = await ctx.db
+            .query("games")
+            .withIndex("by_user", (q) => q.eq("userId", args.userId))
+            .collect();
+
+        return finishedGames.reduce((sum, g) => sum + g.score, 0);
+    },
 });
 
 export async function createNewGame(
@@ -197,4 +191,3 @@ export async function getInProgressGameByUserId(
         .first();
     return game ?? null;
 }
-

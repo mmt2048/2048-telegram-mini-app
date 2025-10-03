@@ -6,7 +6,6 @@ const app = defineApp();
 
 app.use(aggregate, { name: "aggregateUserTotalsByDailyBestScore" });
 app.use(aggregate, { name: "aggregateUserTotalsByTotalScore" });
-app.use(aggregate, { name: "aggregateGamesByUser" });
 
 app.use(migrations);
 
