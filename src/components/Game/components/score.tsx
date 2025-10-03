@@ -1,26 +1,14 @@
-import { Section, Title, Cell, Skeleton } from "@telegram-apps/telegram-ui";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { useUser } from "@/contexts/UserContext";
+import { Section, Title, Cell } from "@telegram-apps/telegram-ui";
+import { useContext } from "react";
+import { GameContext } from "@/components/Game/context/game-context";
 
 export default function Score() {
-    const { userId } = useUser();
-
-    const game = useQuery(
-        api.games.getInProgressGame,
-        userId ? { userId } : "skip"
-    );
-    const score = game?.score;
+    const { score } = useContext(GameContext);
 
     return (
         <Section header="Очки">
             <Cell interactiveAnimation="opacity" style={{ cursor: "default" }}>
-                {score !== undefined && <Title weight="2">{score}</Title>}
-                {score === undefined && (
-                    <Skeleton visible={true}>
-                        <Title weight="2">1000</Title>
-                    </Skeleton>
-                )}
+                <Title weight="2">{score}</Title>
             </Cell>
         </Section>
     );

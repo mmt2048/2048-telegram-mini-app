@@ -1,8 +1,11 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
-import { getTodayDateKey, aggregateUserTotalsByDailyBestScore, aggregateUserTotalsByTotalScore } from "./userTotals";
+import {
+    getTodayDateKey,
+    aggregateUserTotalsByDailyBestScore,
+    aggregateUserTotalsByTotalScore,
+} from "./userTotals";
 import { getUserTotalsByUserId } from "./userTotals";
-
 
 export const getRating = query({
     args: {
@@ -12,13 +15,16 @@ export const getRating = query({
     },
     handler: async (ctx, args) => {
         const isDaily = args.type === "daily";
-        const scoreField: "dailyBestScore" | "totalScore" = isDaily ? "dailyBestScore" : "totalScore";
-        
+        const scoreField: "dailyBestScore" | "totalScore" = isDaily
+            ? "dailyBestScore"
+            : "totalScore";
+
         let page;
+        const todayDateKey = getTodayDateKey();
         if (isDaily) {
             page = await aggregateUserTotalsByDailyBestScore.paginate(ctx, {
                 bounds: {
-                    prefix: [getTodayDateKey()]
+                    prefix: [todayDateKey],
                 },
                 pageSize: args.limit,
             });
@@ -27,8 +33,10 @@ export const getRating = query({
                 pageSize: args.limit,
             });
         }
-        
-        const userTotals = await Promise.all(page.page.map((doc) => ctx.db.get(doc.id)));
+
+        const userTotals = await Promise.all(
+            page.page.map((doc) => ctx.db.get(doc.id))
+        );
 
         let hasRequestingUser = false;
 
@@ -51,21 +59,50 @@ export const getRating = query({
                 place: index + 1,
             });
         }
-            
+
         if (!hasRequestingUser) {
-            const requestingUserTotals = await getUserTotalsByUserId(ctx, args.userId);
+            // await aggregateUserTotalsByDailyBestScore.ge
+            const requestingUserTotals = await getUserTotalsByUserId(
+                ctx,
+                args.userId
+            );
             const requestingUser = await ctx.db.get(args.userId);
             if (requestingUser && requestingUserTotals) {
-                const userPlace = isDaily 
-                    ? await aggregateUserTotalsByDailyBestScore.indexOfDoc(ctx, requestingUserTotals) + 1
-                    : await aggregateUserTotalsByTotalScore.indexOfDoc(ctx, requestingUserTotals) + 1;
-                
-                rating.push({
-                    user_id: requestingUser.telegramId,
-                    user_nickname: requestingUser.nickname,
-                    score: requestingUserTotals[scoreField],
-                    place: userPlace,
-                });
+                let userPlace;
+                if (
+                    isDaily &&
+                    requestingUserTotals.dailyResetDate === todayDateKey
+                ) {
+                    userPlace =
+                        await aggregateUserTotalsByDailyBestScore.indexOfDoc(
+                            ctx,
+                            requestingUserTotals,
+                            {
+                                bounds: {
+                                    prefix: [todayDateKey],
+                                },
+                            }
+                        );
+                    rating.push({
+                        user_id: requestingUser.telegramId,
+                        user_nickname: requestingUser.nickname,
+                        score: requestingUserTotals[scoreField],
+                        place: userPlace + 1,
+                    });
+                } else if (!isDaily) {
+                    userPlace =
+                        await aggregateUserTotalsByTotalScore.indexOfDoc(
+                            ctx,
+                            requestingUserTotals
+                        );
+
+                    rating.push({
+                        user_id: requestingUser.telegramId,
+                        user_nickname: requestingUser.nickname,
+                        score: requestingUserTotals[scoreField],
+                        place: userPlace + 1,
+                    });
+                }
             }
         }
 

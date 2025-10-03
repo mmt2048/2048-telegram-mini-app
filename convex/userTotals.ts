@@ -20,7 +20,7 @@ export const aggregateUserTotalsByTotalScore = new TableAggregate<{
 });
 
 export const migrations = new Migrations<DataModel>(components.migrations);
-export const backfillUserTotalsMigration = migrations.define({
+export const backfillUserTotalsMigration1 = migrations.define({
     table: "userTotals",
     migrateOne: async (ctx, doc) => {
         await aggregateUserTotalsByDailyBestScore.insertIfDoesNotExist(
@@ -30,8 +30,8 @@ export const backfillUserTotalsMigration = migrations.define({
         await aggregateUserTotalsByTotalScore.insertIfDoesNotExist(ctx, doc);
     },
 });
-export const runUserTotalsBackfill = migrations.runner(
-    internal.userTotals.backfillUserTotalsMigration
+export const runUserTotalsBackfill1 = migrations.runner(
+    internal.userTotals.backfillUserTotalsMigration1
 );
 
 export async function getUserTotalsByUserId(

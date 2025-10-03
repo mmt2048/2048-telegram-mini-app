@@ -8,13 +8,12 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { formatNumberWithSpaces } from "@/helper/formatter";
 import { useUser } from "@/contexts/UserContext";
+import { useContext } from "react";
+import { GameContext } from "@/components/Game/context/game-context";
 
 export default function PromocodeProgress() {
     const { userId } = useUser();
-    const game = useQuery(
-        api.games.getInProgressGame,
-        userId ? { userId } : "skip"
-    );
+    const { score: localScore } = useContext(GameContext);
     const totalScore = useQuery(
         api.games.getTotalScore,
         userId ? { userId } : "skip"
@@ -25,7 +24,7 @@ export default function PromocodeProgress() {
         userId ? { userId } : "skip"
     );
 
-    const currentRecord = game?.score ?? 0;
+    const currentRecord = localScore;
     const currentTotal = totalScore ?? 0;
 
     const unopenedTypes = (promocodeTypes ?? []).filter(
