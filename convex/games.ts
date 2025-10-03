@@ -139,16 +139,16 @@ export const getRecordScore = query({
         userId: v.id("users"),
     },
     handler: async (ctx, args) => {
-        const finishedGames = await ctx.db
-            .query("games")
-            .withIndex("by_user", (q) => q.eq("userId", args.userId))
-            .collect();
-
-        if (finishedGames.length === 0) return 0;
-        return finishedGames.reduce(
-            (max, g) => (g.score > max ? g.score : max),
-            0
+        const userTotals = await getUserTotalsByUserId(ctx, args.userId);
+        const inProgressGame = await getInProgressGameByUserId(
+            ctx,
+            args.userId
         );
+
+        const recordFromFinished = userTotals?.recordScore ?? 0;
+        const currentGameScore = inProgressGame?.score ?? 0;
+
+        return Math.max(recordFromFinished, currentGameScore);
     },
 });
 
@@ -157,12 +157,16 @@ export const getTotalScore = query({
         userId: v.id("users"),
     },
     handler: async (ctx, args) => {
-        const finishedGames = await ctx.db
-            .query("games")
-            .withIndex("by_user", (q) => q.eq("userId", args.userId))
-            .collect();
+        const userTotals = await getUserTotalsByUserId(ctx, args.userId);
+        const inProgressGame = await getInProgressGameByUserId(
+            ctx,
+            args.userId
+        );
 
-        return finishedGames.reduce((sum, g) => sum + g.score, 0);
+        const totalFromFinished = userTotals?.totalScore ?? 0;
+        const currentGameScore = inProgressGame?.score ?? 0;
+
+        return totalFromFinished + currentGameScore;
     },
 });
 

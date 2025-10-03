@@ -25,6 +25,7 @@ type MoveDirection = "move_up" | "move_down" | "move_left" | "move_right";
 
 export const GameContext = createContext({
     status: "ongoing",
+    score: 0,
     moveTiles: (_: MoveDirection) => {},
     getTiles: () => [] as Tile[],
     startGame: () => {},
@@ -41,14 +42,18 @@ export default function GameProvider({ children }: PropsWithChildren) {
     const inFlightRef = useRef(false);
     const inFlightPromiseRef = useRef<Promise<void> | null>(null);
     const latestQueuedScoreRef = useRef<number | null>(null);
+    const lastSentScoreRef = useRef<number>(0);
     const debouncedSenderRef = useRef<ReturnType<typeof debounce> | null>(null);
 
     const sendScore = useCallback(
         async (score: number): Promise<void> => {
-            // If a request is in-flight, just record the latest score and piggyback
-            if (inFlightRef.current) {
-                latestQueuedScoreRef.current = score;
-                return inFlightPromiseRef.current ?? Promise.resolve();
+            // If a request is in-flight, wait for it to complete
+            if (inFlightRef.current && inFlightPromiseRef.current) {
+                await inFlightPromiseRef.current;
+                // Don't send if this score was already sent or is stale
+                if (score <= lastSentScoreRef.current) {
+                    return;
+                }
             }
 
             inFlightRef.current = true;
@@ -59,6 +64,7 @@ export default function GameProvider({ children }: PropsWithChildren) {
                             score: score,
                             userId,
                         });
+                        lastSentScoreRef.current = score;
                     }
                 } catch (error) {
                     console.error("Error pushing score:", error);
@@ -69,26 +75,34 @@ export default function GameProvider({ children }: PropsWithChildren) {
 
             inFlightPromiseRef.current = p;
             await p;
-
-            // If a newer score was queued while we were sending, send it next
-            if (latestQueuedScoreRef.current !== null) {
-                const next = latestQueuedScoreRef.current;
-                latestQueuedScoreRef.current = null;
-                await sendScore(next);
-            }
         },
         [setGameScoreMutation, userId]
     );
 
     const pushScore = useCallback(
         (score: number) => {
-            if (!debouncedSenderRef.current) {
-                debouncedSenderRef.current = debounce((s: number) => {
-                    void sendScore(s);
-                }, 300);
-            }
+            // Always queue the latest score
             latestQueuedScoreRef.current = score;
-            debouncedSenderRef.current(score);
+
+            // Only trigger debounce if score has increased by at least 8 points since last sent
+            // This prevents excessive updates during rapid gameplay
+            const scoreDelta = score - lastSentScoreRef.current;
+            if (scoreDelta < 8) {
+                return;
+            }
+
+            if (!debouncedSenderRef.current) {
+                // Debounced function reads from latestQueuedScoreRef to always get the latest value
+                debouncedSenderRef.current = debounce(() => {
+                    if (latestQueuedScoreRef.current !== null) {
+                        const scoreToSend = latestQueuedScoreRef.current;
+                        latestQueuedScoreRef.current = null;
+                        void sendScore(scoreToSend);
+                    }
+                }, 5000);
+            }
+            // Trigger the debounce (will only execute once after 2s of inactivity)
+            debouncedSenderRef.current();
         },
         [sendScore]
     );
@@ -99,15 +113,12 @@ export default function GameProvider({ children }: PropsWithChildren) {
                 latestQueuedScoreRef.current = finalScore;
             }
 
-            // Flush any pending debounce immediately
-            if (
-                debouncedSenderRef.current &&
-                (debouncedSenderRef.current as any).flush
-            ) {
-                (debouncedSenderRef.current as any).flush();
+            // Cancel any pending debounced call to prevent double-send
+            if (debouncedSenderRef.current) {
+                (debouncedSenderRef.current as any).cancel();
             }
 
-            // If there is a queued score, send it
+            // If there is a queued score, send it once
             if (latestQueuedScoreRef.current !== null) {
                 const s = latestQueuedScoreRef.current;
                 latestQueuedScoreRef.current = null;
@@ -216,6 +227,10 @@ export default function GameProvider({ children }: PropsWithChildren) {
 
         initializationPromise.current = (async () => {
             try {
+                // Reset score tracking for new game
+                lastSentScoreRef.current = 0;
+                latestQueuedScoreRef.current = null;
+
                 if (userId) {
                     await startNewGameMutation({
                         userId,
@@ -373,6 +388,7 @@ export default function GameProvider({ children }: PropsWithChildren) {
         <GameContext.Provider
             value={{
                 status: gameState.status,
+                score: gameState.score,
                 getTiles,
                 moveTiles,
                 startGame,

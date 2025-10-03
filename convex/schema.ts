@@ -7,11 +7,7 @@ export default defineSchema({
         score: v.number(),
         status: v.union(v.literal("in_progress"), v.literal("finished")),
         updatedAt: v.number(),
-    })
-        .index("by_user_and_status", ["userId", "status"])
-        .index("by_user", ["userId"])
-        .index("by_updated_at", ["updatedAt"])
-        .index("by_user_and_updated_at", ["userId", "updatedAt"]),
+    }).index("by_user_and_status", ["userId", "status"]),
     users: defineTable({
         telegramId: v.number(),
         username: v.string(),
@@ -41,9 +37,7 @@ export default defineSchema({
         userId: v.id("users"),
         code: v.string(),
         opened: v.boolean(),
-    })
-        .index("by_user", ["userId"])
-        .index("by_user_and_type", ["userId", "promocodeTypeId"]),
+    }).index("by_user_and_type", ["userId", "promocodeTypeId"]),
     availablePromocodes: defineTable({
         promocodeTypeId: v.id("promocodeTypes"),
         code: v.string(),
@@ -52,7 +46,6 @@ export default defineSchema({
         user1Id: v.id("users"),
         user2Id: v.id("users"),
     })
-        .index("by_user1", ["user1Id"])
         .index("by_user2", ["user2Id"])
         .index("by_user1_and_user2", ["user1Id", "user2Id"]),
 });

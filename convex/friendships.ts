@@ -21,7 +21,9 @@ export const getFriends = query({
     handler: async (ctx, args) => {
         const asUser1 = await ctx.db
             .query("friendships")
-            .withIndex("by_user1", (q) => q.eq("user1Id", args.userId))
+            .withIndex("by_user1_and_user2", (q) =>
+                q.eq("user1Id", args.userId)
+            )
             .collect();
         const asUser2 = await ctx.db
             .query("friendships")

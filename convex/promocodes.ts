@@ -9,7 +9,7 @@ export const getUserPromocodes = query({
     handler: async (ctx, args) => {
         return await ctx.db
             .query("promocodes")
-            .withIndex("by_user", (q) => q.eq("userId", args.userId))
+            .withIndex("by_user_and_type", (q) => q.eq("userId", args.userId))
             .collect();
     },
 });
@@ -103,7 +103,7 @@ export async function awardEligiblePromocodes(
     // Batch check existing promocodes for all eligible types (reduces N queries to 1)
     const existingPromocodes = await ctx.db
         .query("promocodes")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_user_and_type", (q) => q.eq("userId", userId))
         .collect();
 
     const existingTypeIds = new Set(
