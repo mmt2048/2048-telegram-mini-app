@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as availablePromocodes from "../availablePromocodes.js";
 import type * as friendships from "../friendships.js";
 import type * as games from "../games.js";
 import type * as promocodeTypes from "../promocodeTypes.js";
@@ -32,6 +33,7 @@ import type {
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  availablePromocodes: typeof availablePromocodes;
   friendships: typeof friendships;
   games: typeof games;
   promocodeTypes: typeof promocodeTypes;

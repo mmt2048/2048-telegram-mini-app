@@ -1,10 +1,8 @@
 import { v } from "convex/values";
 import { mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
 import { DataModel, Id } from "./_generated/dataModel";
-import {
-    aggregateAvailablePromocodesByType,
-    awardEligiblePromocodes,
-} from "./promocodes";
+import { awardEligiblePromocodes } from "./promocodes";
+import { aggregateAvailablePromocodesByType } from "./availablePromocodes";
 import { Triggers } from "convex-helpers/server/triggers";
 import {
     customCtx,

@@ -1,6 +1,5 @@
 import { query } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
-import { aggregateAvailablePromocodesByType } from "./promocodes";
+import { aggregateAvailablePromocodesByType } from "./availablePromocodes";
 
 function startOfTodayMs(): number {
     const now = new Date();
