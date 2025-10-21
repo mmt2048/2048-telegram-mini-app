@@ -1,6 +1,28 @@
 import { v } from "convex/values";
 import { MutationCtx, mutation, query } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
+import { DataModel, Id } from "./_generated/dataModel";
+import { TableAggregate } from "@convex-dev/aggregate";
+import { components, internal } from "./_generated/api";
+import { Migrations } from "@convex-dev/migrations";
+
+export const aggregateAvailablePromocodesByType = new TableAggregate<{
+    Key: [Id<"promocodeTypes">];
+    DataModel: DataModel;
+    TableName: "availablePromocodes";
+}>(components.aggregateAvailablePromocodesByType, {
+    sortKey: (doc) => [doc.promocodeTypeId],
+});
+
+export const migrations = new Migrations<DataModel>(components.migrations);
+export const backfillAvailablePromocodesMigration = migrations.define({
+    table: "availablePromocodes",
+    migrateOne: async (ctx, doc) => {
+        await aggregateAvailablePromocodesByType.insertIfDoesNotExist(ctx, doc);
+    },
+});
+export const runAvailablePromocodesBackfill = migrations.runner(
+    internal.promocodes.backfillAvailablePromocodesMigration
+);
 
 export const getUserPromocodes = query({
     args: {
@@ -69,6 +91,7 @@ export const getPromocodeWithUserAndType = query({
         return { promocode: pc, user, promocodeType };
     },
 });
+``;
 
 export async function awardEligiblePromocodes(
     ctx: MutationCtx,
