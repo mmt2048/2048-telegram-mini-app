@@ -69,6 +69,7 @@ export const getPromocodeWithUserAndType = query({
         return { promocode: pc, user, promocodeType };
     },
 });
+``;
 
 export async function awardEligiblePromocodes(
     ctx: MutationCtx,

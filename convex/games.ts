@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
 import { DataModel, Id } from "./_generated/dataModel";
 import { awardEligiblePromocodes } from "./promocodes";
+import { aggregateAvailablePromocodesByType } from "./availablePromocodes";
 import { Triggers } from "convex-helpers/server/triggers";
 import {
     customCtx,
@@ -22,6 +23,10 @@ triggers.register(
 triggers.register(
     "userTotals",
     aggregateUserTotalsByTotalScore.idempotentTrigger()
+);
+triggers.register(
+    "availablePromocodes",
+    aggregateAvailablePromocodesByType.idempotentTrigger()
 );
 const mutationWithTriggers = customMutation(
     mutation,
