@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { hapticFeedback } from "@telegram-apps/sdk-react";
+import { hapticFeedback, openLink } from "@telegram-apps/sdk-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Modal, Text } from "@telegram-apps/telegram-ui";
+import { Badge, Modal, Text } from "@telegram-apps/telegram-ui";
 import type { Id } from "@/convex/_generated/dataModel";
 import { ModalHeader } from "@telegram-apps/telegram-ui/dist/components/Overlays/Modal/components/ModalHeader/ModalHeader";
 import PromocodeButton from "@/components/PromocodeButton";
@@ -128,8 +128,22 @@ export const PromocodeAwardModal: React.FC = () => {
                     }}
                 />
                 <Text>
-                    Вам доступен промокод на {activeType.discount} ₽ от{" "}
-                    {activeType.minOrder} ₽
+                    Промокод на {activeType.discount} ₽ от {activeType.minOrder}{" "}
+                    ₽
+                    <Badge
+                        mode="secondary"
+                        type="number"
+                        onClick={() => {
+                            if (activeType.url) {
+                                openLink(activeType.url);
+                            }
+                        }}
+                        style={{
+                            cursor: activeType.url ? "pointer" : "default",
+                        }}
+                    >
+                        {activeType.label}
+                    </Badge>
                 </Text>
                 <PromocodeButton
                     promocodeId={activePromocode._id}
