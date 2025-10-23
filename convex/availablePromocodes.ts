@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { MutationCtx, mutation, query } from "./_generated/server";
+import { mutation } from "./_generated/server";
 import { DataModel, Id } from "./_generated/dataModel";
 import { TableAggregate } from "@convex-dev/aggregate";
 import { components, internal } from "./_generated/api";
