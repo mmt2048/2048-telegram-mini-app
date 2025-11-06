@@ -3,7 +3,7 @@ import { Page } from "@/components/Page";
 
 import { PromocodesSection } from "@/components/PromocodesSection";
 import { StatsSection } from "@/components/StatsSection";
-import { List } from "@telegram-apps/telegram-ui";
+import { Subheadline, List } from "@telegram-apps/telegram-ui";
 import { openLink } from "@telegram-apps/sdk-react";
 
 const PromocodeRulesLink: React.FC = () => (
@@ -16,8 +16,20 @@ const PromocodeRulesLink: React.FC = () => (
         }}
         onClick={() => openLink("https://legal.mm.ru/")}
     >
-        Правила промокодов
+        Правила акции
     </a>
+);
+
+const Subheader: React.FC = () => (
+    <Subheadline
+        level="2"
+        style={{
+            color: "var(--tgui--text_color)",
+            fontStyle: "italic",
+        }}
+    >
+        Успей получить и активировать до 30 ноября 2025
+    </Subheadline>
 );
 
 const PrizesPage: React.FC = () => {
@@ -27,7 +39,12 @@ const PrizesPage: React.FC = () => {
                 <StatsSection />
 
                 <PromocodesSection
-                    header="Промокоды за рекорд"
+                    header={
+                        <>
+                            Промокоды за рекорд
+                            <Subheader />
+                        </>
+                    }
                     footer={
                         <>
                             Получите призы за лучший результат в одной игре. Чем
@@ -39,7 +56,12 @@ const PrizesPage: React.FC = () => {
                 />
 
                 <PromocodesSection
-                    header="Промокоды за все игры"
+                    header={
+                        <>
+                            Промокоды за все игры
+                            <Subheader />
+                        </>
+                    }
                     footer={
                         <>
                             Получите призы за суммарное количество очков за все
