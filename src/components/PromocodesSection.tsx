@@ -16,8 +16,8 @@ import type { Doc } from "@/convex/_generated/dataModel";
 import { useUser } from "@/contexts/UserContext";
 
 type PromocodesSection = {
-    header: string;
-    footer: string;
+    header: React.ReactNode;
+    footer: React.ReactNode;
     type: "record" | "total";
 };
 
@@ -92,7 +92,10 @@ export const PromocodesSection = ({
         promocodeTypes !== undefined;
 
     return (
-        <Section header={header} footer={footer}>
+        <Section
+            header={<Section.Header>{header}</Section.Header>}
+            footer={<Section.Footer>{footer}</Section.Footer>}
+        >
             {showTimeline && (
                 <Timeline>
                     {promocodeTypes!.map((type, index) => {
