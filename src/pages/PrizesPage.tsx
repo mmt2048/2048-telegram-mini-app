@@ -24,7 +24,7 @@ const Subheader: React.FC = () => (
     <Subheadline
         level="2"
         style={{
-            color: "var(--tgui--text_color)",
+            color: "var(--tgui--hint_color)",
             fontStyle: "italic",
         }}
     >
