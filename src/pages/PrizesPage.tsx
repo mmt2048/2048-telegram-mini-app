@@ -14,7 +14,7 @@ const PromocodeRulesLink: React.FC = () => (
             textDecoration: "underline",
             fontWeight: "normal",
         }}
-        onClick={() => openLink("https://legal.mm.ru/")}
+        onClick={() => openLink("https://legal.mm.ru/#rec816347832")}
     >
         Правила акции
     </a>
