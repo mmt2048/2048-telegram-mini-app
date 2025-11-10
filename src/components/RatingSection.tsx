@@ -12,7 +12,6 @@ export const RatingSection: React.FC<{
     footer: string;
     noDataText: string;
     type: "daily" | "total";
-    scope: "global" | "friends";
 }> = ({ title, footer, noDataText, type }) => {
     const lp = useLaunchParams(true);
     const { userId } = useUser();
@@ -22,7 +21,6 @@ export const RatingSection: React.FC<{
             ? {
                   userId,
                   type: type,
-                  //   scope: scope,
                   limit: ratingLength,
               }
             : "skip"
